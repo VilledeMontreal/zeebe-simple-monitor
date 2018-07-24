@@ -16,10 +16,12 @@
 package io.zeebe.zeebemonitor.zeebe;
 
 import io.zeebe.gateway.api.events.IncidentEvent;
+import io.zeebe.gateway.api.events.JobEvent;
 import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
 import io.zeebe.gateway.api.record.Record;
 import io.zeebe.gateway.api.record.RecordMetadata;
 import io.zeebe.gateway.api.subscription.IncidentEventHandler;
+import io.zeebe.gateway.api.subscription.JobEventHandler;
 import io.zeebe.gateway.api.subscription.RecordHandler;
 import io.zeebe.gateway.api.subscription.TopicSubscription;
 import io.zeebe.gateway.api.subscription.TopicSubscriptionBuilderStep1.TopicSubscriptionBuilderStep3;
@@ -68,6 +70,7 @@ public class ZeebeSubscriber
                 .name(subscriptionName)
                 .workflowInstanceEventHandler(handler::onWorkflowInstanceEvent)
                 .incidentEventHandler(handler::onIncidentEvent)
+                .jobEventHandler(handler::onJobEvent)
                 .recordHandler(handler::onRecord)
                 .startAtHead();
 
@@ -91,7 +94,7 @@ public class ZeebeSubscriber
     }
 
     private class Handler implements WorkflowInstanceEventHandler, IncidentEventHandler,
-        RecordHandler
+        RecordHandler, JobEventHandler
     {
         @Override
         public void onRecord(Record record) throws Exception
@@ -186,6 +189,17 @@ public class ZeebeSubscriber
             insertRecord(event);
         }
 
+        @Override
+        public void onJobEvent(JobEvent jobEvent) throws Exception {
+          switch (jobEvent.getState())
+          {
+              case FAILED:
+                  workflowInstanceJobRetriesUsedUp(jobEvent);
+                  break;
+          }
+          insertRecord(jobEvent);
+        }
+       
     }
 
     private void insertRecord(Record record)
@@ -302,6 +316,18 @@ public class ZeebeSubscriber
 
         workflowInstanceRepository.save(workflowInstance);
     }
+    
+    private void workflowInstanceJobRetriesUsedUp(JobEvent event) {
+      final RecordMetadata metadata = event.getMetadata();
+      
+      if (event.getRetries()==0) { // validate! haven't seen any with 0 in the records
+        long workflowInstanceKey = (long) event.getHeaders().get("workflowInstanceKey");
+        final WorkflowInstanceEntity workflowInstance = workflowInstanceRepository.findByWorkflowInstanceKeyAndPartitionId(workflowInstanceKey, metadata.getPartitionId());   
+       
+        workflowInstance.setLastFailedJobRecordEventPosition(event.getMetadata().getPosition());
+        workflowInstanceRepository.save(workflowInstance);
+      }
+    }    
 
     private void sequenceFlowTaken(WorkflowInstanceEvent event)
     {

@@ -15,17 +15,20 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
-import io.zeebe.client.api.commands.Workflow;
-import io.zeebe.client.api.commands.WorkflowResource;
-import io.zeebe.zeebemonitor.entity.WorkflowEntity;
-import io.zeebe.zeebemonitor.repository.PartitionRepository;
-import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.api.commands.Workflow;
+import io.zeebe.gateway.api.commands.WorkflowResource;
+import io.zeebe.zeebemonitor.entity.WorkflowEntity;
+import io.zeebe.zeebemonitor.repository.PartitionRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 
 @Component
 public class WorkflowService
@@ -52,7 +55,7 @@ public class WorkflowService
         {
             final WorkflowResource resource = connectionService
                     .getClient()
-                    .topicClient(topic)
+                    .topicClient()//topic
                     .workflowClient()
                     .newResourceRequest()
                     .workflowKey(workflowKey)
@@ -75,7 +78,7 @@ public class WorkflowService
     {
         final List<Workflow> workflows = connectionService
             .getClient()
-            .topicClient(topic)
+            .topicClient() // topic
             .workflowClient()
             .newWorkflowRequest()
             .send()

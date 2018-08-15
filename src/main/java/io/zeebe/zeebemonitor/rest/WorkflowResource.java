@@ -20,16 +20,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import io.zeebe.client.api.clients.WorkflowClient;
-import io.zeebe.client.api.commands.Workflow;
-import io.zeebe.client.api.events.DeploymentEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.zeebe.gateway.api.clients.WorkflowClient;
+import io.zeebe.gateway.api.commands.Workflow;
+import io.zeebe.gateway.api.events.DeploymentEvent;
 import io.zeebe.zeebemonitor.entity.WorkflowEntity;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import io.zeebe.zeebemonitor.zeebe.WorkflowService;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(path = "/api/workflows")
@@ -89,7 +94,7 @@ public class WorkflowResource
 
         connections
             .getClient()
-            .topicClient(workflow.getTopic())
+            .topicClient() // workflow.getTopic()
             .workflowClient()
             .newCreateInstanceCommand()
             .workflowKey(workflowKey)
@@ -104,7 +109,7 @@ public class WorkflowResource
         final String deploymentTopic = deployment.getTopic();
 
         final WorkflowClient workflowClient = connections.getClient()
-                .topicClient(deploymentTopic)
+                .topicClient() // deploymentTopic
                 .workflowClient();
 
         final List<Long> workflowKeys = new ArrayList<>();

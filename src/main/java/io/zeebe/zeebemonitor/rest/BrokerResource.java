@@ -17,13 +17,17 @@ package io.zeebe.zeebemonitor.rest;
 
 import java.util.List;
 
-import io.zeebe.client.api.commands.BrokerInfo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.zeebe.gateway.api.commands.BrokerInfo;
 import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
 import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.*;
 
 @Component
 @RestController

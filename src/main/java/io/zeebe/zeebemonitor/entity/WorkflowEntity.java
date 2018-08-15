@@ -15,8 +15,9 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import io.zeebe.client.api.commands.WorkflowResource;
 import org.springframework.data.annotation.Id;
+
+import io.zeebe.gateway.api.commands.WorkflowResource;
 
 public class WorkflowEntity
 {

@@ -19,14 +19,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import io.zeebe.client.api.commands.Partition;
-import io.zeebe.client.api.commands.Topic;
-import io.zeebe.protocol.Protocol;
-import io.zeebe.zeebemonitor.entity.PartitionEntity;
-import io.zeebe.zeebemonitor.repository.PartitionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.api.commands.Partition;
+import io.zeebe.gateway.api.commands.Topic;
+import io.zeebe.protocol.Protocol;
+import io.zeebe.zeebemonitor.entity.PartitionEntity;
+import io.zeebe.zeebemonitor.repository.PartitionRepository;
 
 @Component
 public class TopicService

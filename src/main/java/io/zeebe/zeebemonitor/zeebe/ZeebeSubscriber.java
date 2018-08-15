@@ -17,19 +17,28 @@ package io.zeebe.zeebemonitor.zeebe;
 
 import java.util.Optional;
 
-import io.zeebe.client.api.events.IncidentEvent;
-import io.zeebe.client.api.events.JobEvent;
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.Record;
-import io.zeebe.client.api.record.RecordMetadata;
-import io.zeebe.client.api.subscription.*;
-import io.zeebe.client.api.subscription.TopicSubscriptionBuilderStep1.TopicSubscriptionBuilderStep3;
-import io.zeebe.zeebemonitor.entity.*;
-import io.zeebe.zeebemonitor.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.api.events.IncidentEvent;
+import io.zeebe.gateway.api.events.JobEvent;
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.Record;
+import io.zeebe.gateway.api.record.RecordMetadata;
+import io.zeebe.gateway.api.subscription.IncidentEventHandler;
+import io.zeebe.gateway.api.subscription.JobEventHandler;
+import io.zeebe.gateway.api.subscription.RecordHandler;
+import io.zeebe.gateway.api.subscription.TopicSubscriptionBuilderStep1.TopicSubscriptionBuilderStep3;
+import io.zeebe.gateway.api.subscription.WorkflowInstanceEventHandler;
+import io.zeebe.zeebemonitor.entity.IncidentEntity;
+import io.zeebe.zeebemonitor.entity.RecordEntity;
+import io.zeebe.zeebemonitor.entity.SubscriptionEntity;
+import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
+import io.zeebe.zeebemonitor.repository.RecordRepository;
+import io.zeebe.zeebemonitor.repository.SubscriptionRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 
 @Component
 public class ZeebeSubscriber
@@ -61,7 +70,7 @@ public class ZeebeSubscriber
 
         final TopicSubscriptionBuilderStep3 subscriptionBuilder = connectionService
                 .getClient()
-                .topicClient(topicName)
+                .topicClient() // topicName
                 .newSubscription()
                 .name(subscriptionName)
                 .workflowInstanceEventHandler(handler::onWorkflowInstanceEvent)

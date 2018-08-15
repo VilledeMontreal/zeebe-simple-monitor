@@ -15,11 +15,14 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.RecordMetadata;
 import org.springframework.data.annotation.Id;
+
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.RecordMetadata;
 
 public class WorkflowInstanceEntity
 {

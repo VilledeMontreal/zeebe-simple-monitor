@@ -15,16 +15,21 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import io.zeebe.client.api.events.JobEvent;
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.ZeebeObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.zeebe.gateway.api.events.JobEvent;
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.ZeebeObjectMapper;
 import io.zeebe.zeebemonitor.entity.RecordEntity;
 import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
 import io.zeebe.zeebemonitor.repository.RecordRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/instances")
@@ -57,7 +62,7 @@ public class WorkflowInstanceResource
 
         connections
             .getClient()
-            .topicClient(workflowInstance.getTopicName())
+            .topicClient() // workflowInstance.getTopicName()
             .workflowClient()
             .newCancelInstanceCommand(event)
             .send()
@@ -76,7 +81,7 @@ public class WorkflowInstanceResource
 
         connections
             .getClient()
-            .topicClient(workflowInstance.getTopicName())
+            .topicClient() // workflowInstance.getTopicName()
             .workflowClient()
             .newUpdatePayloadCommand(event)
             .payload(payload)
@@ -97,7 +102,7 @@ public class WorkflowInstanceResource
           
           connections
             .getClient()
-            .topicClient(workflowInstance.getTopicName())
+            .topicClient() // workflowInstance.getTopicName()
             .jobClient()
             .newUpdateRetriesCommand(event)
             .retries(2)

@@ -46,16 +46,7 @@ public class TopicResource
     @RequestMapping(path = "/", method = RequestMethod.POST)
     public void createTopic(@RequestBody TopicDto topicCommand)
     {
-        zeebeConnections
-            .getClient()
-            .newCreateTopicCommand()
-            .name(topicCommand.getTopicName())
-            .partitions(topicCommand.getPartitionCount())
-            .replicationFactor(topicCommand.getReplicationFactor())
-            .send()
-            .join();
-
-        topicService.synchronizeAsync();
+        throw new IllegalArgumentException("Zeebe does not support topics anymore!");
     }
 
 }

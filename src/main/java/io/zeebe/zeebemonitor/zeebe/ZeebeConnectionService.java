@@ -15,7 +15,7 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
-import io.zeebe.client.ZeebeClient;
+import io.zeebe.gateway.ZeebeClient;
 import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
 import io.zeebe.zeebemonitor.repository.*;
 import org.slf4j.Logger;
@@ -67,9 +67,7 @@ public class ZeebeConnectionService
 
             connected = true;
 
-            partitionRepository
-                .getTopicNames()
-                .forEach(topic -> subscriber.openSubscription(topic));
+            subscriber.openSubscription();
         }
         else
         {

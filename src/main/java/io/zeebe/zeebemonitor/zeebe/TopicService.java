@@ -15,13 +15,10 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
+import io.zeebe.gateway.api.commands.Partition;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import io.zeebe.client.api.commands.Partition;
-import io.zeebe.client.api.commands.Topic;
-import io.zeebe.protocol.Protocol;
 import io.zeebe.zeebemonitor.entity.PartitionEntity;
 import io.zeebe.zeebemonitor.repository.PartitionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,17 +45,9 @@ public class TopicService
 
     public void synchronizeWithBroker()
     {
-        final List<Topic> topics = connectionService
-            .getClient()
-            .newTopicsRequest()
-            .send()
-            .join()
-            .getTopics();
-
-        final List<Partition> partitions = topics
-                .stream()
-                .flatMap(t -> t.getPartitions().stream())
-                .collect(Collectors.toList());
+        final List<Partition> partitions =
+            connectionService.getClient()
+                .newPartitionsRequest().send().join().getPartitions();
 
         final List<Integer> availablePartitions = new ArrayList<>();
         for (PartitionEntity partitionEntity : partitionRepository.findAll())
@@ -72,17 +61,11 @@ public class TopicService
         {
             final PartitionEntity partitionEntity = new PartitionEntity();
             partitionEntity.setId(p.getId());
-            partitionEntity.setTopicName(p.getTopicName());
 
             partitionRepository.save(partitionEntity);
         });
 
-        partitions
-            .stream()
-            .map(Partition::getTopicName)
-            .filter(t -> !Protocol.SYSTEM_TOPIC.equals(t))
-            .distinct()
-            .forEach(newTopic -> subscriber.openSubscription(newTopic));
+        subscriber.openSubscription();
     }
 
 }

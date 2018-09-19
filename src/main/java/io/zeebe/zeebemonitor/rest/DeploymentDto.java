@@ -19,8 +19,6 @@ import java.util.List;
 
 public class DeploymentDto
 {
-    private String topic;
-
     private List<FileDto> files;
 
     public List<FileDto> getFiles()
@@ -31,16 +29,6 @@ public class DeploymentDto
     public void setFiles(List<FileDto> files)
     {
         this.files = files;
-    }
-
-    public String getTopic()
-    {
-        return topic;
-    }
-
-    public void setTopic(String topic)
-    {
-        this.topic = topic;
     }
 
 }

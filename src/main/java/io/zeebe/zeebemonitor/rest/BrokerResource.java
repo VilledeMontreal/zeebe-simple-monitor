@@ -15,9 +15,9 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
+import io.zeebe.gateway.api.commands.BrokerInfo;
 import java.util.List;
 
-import io.zeebe.client.api.commands.BrokerInfo;
 import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
 import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;

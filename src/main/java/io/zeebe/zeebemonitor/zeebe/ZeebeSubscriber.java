@@ -15,14 +15,17 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
+import io.zeebe.gateway.api.events.IncidentEvent;
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.Record;
+import io.zeebe.gateway.api.record.RecordMetadata;
+import io.zeebe.gateway.api.subscription.IncidentEventHandler;
+import io.zeebe.gateway.api.subscription.RecordHandler;
+import io.zeebe.gateway.api.subscription.TopicSubscription;
+import io.zeebe.gateway.api.subscription.TopicSubscriptionBuilderStep1.TopicSubscriptionBuilderStep3;
+import io.zeebe.gateway.api.subscription.WorkflowInstanceEventHandler;
 import java.util.Optional;
 
-import io.zeebe.client.api.events.IncidentEvent;
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.Record;
-import io.zeebe.client.api.record.RecordMetadata;
-import io.zeebe.client.api.subscription.*;
-import io.zeebe.client.api.subscription.TopicSubscriptionBuilderStep1.TopicSubscriptionBuilderStep3;
 import io.zeebe.zeebemonitor.entity.*;
 import io.zeebe.zeebemonitor.repository.*;
 import org.slf4j.Logger;
@@ -49,47 +52,46 @@ public class ZeebeSubscriber
     @Autowired
     private ZeebeConnectionService connectionService;
 
-    public void openSubscription(String topicName)
-    {
-        LOG.debug("open subscription of topic {}", topicName);
+    private TopicSubscription subscription;
 
-        final Optional<SubscriptionEntity> subscriptionEntity = subscriptionRepository.findById(topicName);
+    public void openSubscription()
+    {
+        // TODO: this is probably not needed anymore without topics
+        final Optional<SubscriptionEntity> subscriptionEntity = subscriptionRepository.findById(SUBSCRIPTION_NAME);
         final String subscriptionName = subscriptionEntity.map(SubscriptionEntity::getSubscriptionName).orElse(SUBSCRIPTION_NAME);
 
         final Handler handler = new Handler();
 
         final TopicSubscriptionBuilderStep3 subscriptionBuilder = connectionService
                 .getClient()
-                .topicClient(topicName)
                 .newSubscription()
                 .name(subscriptionName)
                 .workflowInstanceEventHandler(handler::onWorkflowInstanceEvent)
                 .incidentEventHandler(handler::onIncidentEvent)
                 .recordHandler(handler::onRecord)
-                .startAtHeadOfTopic();
+                .startAtHead();
 
-        if (!subscriptionEntity.isPresent())
-        {
+        if (!subscriptionEntity.isPresent()) {
             subscriptionBuilder.forcedStart();
 
             final SubscriptionEntity newSubscriptionEntity = new SubscriptionEntity();
-            newSubscriptionEntity.setTopicName(topicName);
             newSubscriptionEntity.setSubscriptionName(subscriptionName);
 
             subscriptionRepository.save(newSubscriptionEntity);
         }
 
-        try
-        {
-            subscriptionBuilder.open();
-        }
-        catch (Exception e)
-        {
-            LOG.error("Failed to open subscription", e);
+        if (subscription == null || subscription.isClosed()) {
+            try {
+                LOG.debug("open subscription");
+                subscription = subscriptionBuilder.open();
+            } catch (Exception e) {
+                LOG.error("Failed to open subscription", e);
+            }
         }
     }
 
-    private class Handler implements WorkflowInstanceEventHandler, IncidentEventHandler, RecordHandler
+    private class Handler implements WorkflowInstanceEventHandler, IncidentEventHandler,
+        RecordHandler
     {
         @Override
         public void onRecord(Record record) throws Exception
@@ -100,31 +102,44 @@ public class ZeebeSubscriber
         @Override
         public void onWorkflowInstanceEvent(WorkflowInstanceEvent event) throws Exception
         {
+            final boolean isWorkflowInstanceEvent = event.getKey() == event.getWorkflowInstanceKey();
             switch (event.getState())
             {
-                case CREATED:
-                    workflowInstanceStarted(WorkflowInstanceEntity.from(event));
+                case ELEMENT_ACTIVATED:
+                    if (isWorkflowInstanceEvent) {
+                        workflowInstanceStarted(WorkflowInstanceEntity.from(event));
+                    }
+                    else {
+                        workflowInstanceActivityStarted(event);
+                    }
+
                     break;
 
-                case COMPLETED:
-                    workflowInstanceEnded(event);
+                case ELEMENT_COMPLETED:
+                    if (isWorkflowInstanceEvent) {
+                        workflowInstanceEnded(event);
+                    }
+                    else {
+                        workflowInstanceActivityEnded(event);
+                    }
                     break;
 
-                case CANCELED:
-                    workflowInstanceCanceled(event);
+                case ELEMENT_TERMINATED:
+                    if (isWorkflowInstanceEvent) {
+                        workflowInstanceCanceled(event);
+                    }
+                    else {
+                        workflowInstanceActivityEnded(event);
+                    }
                     break;
 
-                case ACTIVITY_ACTIVATED:
-                    workflowInstanceActivityStarted(event);
+                case ELEMENT_READY:
+                case ELEMENT_COMPLETING:
+                    if (!isWorkflowInstanceEvent) {
+                        workflowInstanceUpdated(event);
+                    }
                     break;
 
-                case ACTIVITY_READY:
-                case ACTIVITY_COMPLETING:
-                    workflowInstanceUpdated(event);
-                    break;
-
-                case ACTIVITY_COMPLETED:
-                case ACTIVITY_TERMINATED:
                 case GATEWAY_ACTIVATED:
                 case START_EVENT_OCCURRED:
                 case END_EVENT_OCCURRED:

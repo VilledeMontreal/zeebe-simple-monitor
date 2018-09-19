@@ -4,12 +4,9 @@ var container = null;
 let restAccess = "api/";
 let brokerLogs = {};
 
-let topics = [];
-
 let isConnected = false;
 var config;
 
-var selectedTopic;
 var workflowDefinitions;
 var selectedWorkflowDefinition;
 
@@ -47,8 +44,7 @@ function refresh() {
 		checkConnection();
 		loadTopology();
 	} else if (currentPage=='definition') {
-		loadTopics();
-		loadWorkflowDefinitions();		
+		loadWorkflowDefinitions();
 	} else if (currentPage=="instance") {
 		loadWorkflowInstances();		
 	} else if (currentPage=="logs") {
@@ -118,7 +114,7 @@ function renderTopology(topology) {
 		for (p = 0; p < broker.partitions.length; p++) {
 			var partition = broker.partitions[p];
 			
-			$('#topologyTable tbody').append("<tr><td>" + broker.address + "</td><td>" + partition.topicName + "</td><td>" + partition.partitionId + "</td><td>" + partition.role + "</td></tr>");
+			$('#topologyTable tbody').append("<tr><td>" + broker.address + "</td><td>" + partition.partitionId + "</td><td>" + partition.role + "</td></tr>");
 		}
 	}
 }	
@@ -137,31 +133,6 @@ function connectToBroker() {
              timeout: 5000,
              crossDomain: true,
     });				
-}
-
-function createTopic() {
-	var topicName = $('#topicName').val()
-	var partitionCount = $('#partitionCount').val()
-	var replicationFactor = $('#replicationFactor').val()
-	
-	var command = '{"topicName":"' + topicName + '", "partitionCount":' + partitionCount + ', "replicationFactor":' + replicationFactor + '}';
-	
-	$.ajax({
-        type : 'POST',
-        url: restAccess + 'topics/',
-        data: command,
-        contentType: 'application/json; charset=utf-8',
-        success: function (result) {
-        	setTimeout(function() {
-				refresh();
-			}, 1000);
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-        timeout: 20000,
-        crossDomain: true,
-});
 }
 
 function setup() {
@@ -235,44 +206,6 @@ function renderConnectionState(connected) {
 
 //-------- workflow page
 
-function loadTopics() {
-	$.ajax({
-        type : 'GET',
-        url: restAccess + 'topics/',
-        contentType: 'application/json; charset=utf-8',
-        success: function (result) {
-        	topics = result;
-        	renderTopicSelection();
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-        timeout: 3000,
-        crossDomain: true,
-	});	
-}
-
-function renderTopicSelection() {
-	
-	$("#selectedTopicDropdown").empty();
-	
-	$("#selectedTopicDropdown").click(function(){ 
-		selectedTopic = $("#selectedTopicDropdown").val();
-	});
-	
-	for (index = 0; index < topics.length; index++) {
-		var topic = topics[index];
-		
-		$('#selectedTopicDropdown').append('<option value="' + topic + '">' + topic + '</option>');
-	}
-	
-	if (selectedTopic) {
-		$("#selectedTopicDropdown").val(selectedTopic);
-	} else {
-		$("#selectedTopicDropdown").val($("#selectedTopicDropdown option:first").val());
-	}
-}	
-
 function loadWorkflowDefinitions() {
 	$.get(restAccess + 'workflows/', function(result) {
 	    workflowDefinitions = result;
@@ -296,7 +229,6 @@ function renderWorkflowDefinitionTable() {
 				"<td "+selectedClass+"><a onclick='selectWorkflowDefinition("+index+")'>"+def.workflowKey+"</a></td>" + 
 				"<td "+selectedClass+"><a onclick='selectWorkflowDefinition("+index+")'>"+def.bpmnProcessId+"</a></td>"+
 				"<td "+selectedClass+">"+def.version+"</td>"+
-				"<td "+selectedClass+">"+def.topic+"</td>"+
 				"<td "+selectedClass+">"+def.countRunning+"</td>"+
 				"<td "+selectedClass+">"+def.countEnded+"</td>"+
 				"</tr>");
@@ -315,7 +247,6 @@ function renderSelectedWorkflowDefinition() {
 		$('#workflowKey').html(selectedWorkflowDefinition.workflowKey);
 		$('#bpmnProcessId').html(selectedWorkflowDefinition.bpmnProcessId);
 		$('#workflowVersion').text(selectedWorkflowDefinition.version);
-		$('#topic').text(selectedWorkflowDefinition.topic);
 
 		$('#countRunning').text(selectedWorkflowDefinition.countRunning);
 		$('#countEnded').text(selectedWorkflowDefinition.countEnded);
@@ -400,7 +331,6 @@ function renderWorkflowInstanceTable() {
 				"<td "+selectedClass+">"+def.bpmnProcessId+"</td>"+
 				"<td "+selectedClass+">"+def.workflowVersion+"</td>"+
 				"<td "+selectedClass+">"+def.workflowKey+"</td>"+
-				"<td "+selectedClass+">"+def.topicName+"</td>"+
 				"<td "+selectedClass+">"+(def.ended ? "Ended" : "Running")+"</td>"+
 				"</tr>");
 	}
@@ -585,7 +515,6 @@ function uploadModels() {
 	var fileUpload = $('#documentToUpload').get(0);
 
 	var filesToUpload = {
-		topic: $('#selectedTopicDropdown').val(), 
 		files: []
 	} 
 

@@ -18,6 +18,6 @@ package io.zeebe.zeebemonitor.repository;
 import io.zeebe.zeebemonitor.entity.PartitionEntity;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface PartitionRepository extends MongoRepository<PartitionEntity, Integer>, PartitionRepositoryCustom
+public interface PartitionRepository extends MongoRepository<PartitionEntity, Integer>
 {
 }

@@ -15,7 +15,7 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import io.zeebe.client.api.commands.WorkflowResource;
+import io.zeebe.gateway.api.commands.WorkflowResource;
 import org.springframework.data.annotation.Id;
 
 public class WorkflowEntity
@@ -28,11 +28,9 @@ public class WorkflowEntity
 
     private int version;
 
-    private String topic;
-
     private String resource;
 
-    public static WorkflowEntity from(WorkflowResource workflowResource, String topic)
+    public static WorkflowEntity from(WorkflowResource workflowResource)
     {
         final WorkflowEntity entity = new WorkflowEntity();
 
@@ -40,8 +38,6 @@ public class WorkflowEntity
         entity.setVersion(workflowResource.getVersion());
         entity.setBpmnProcessId(workflowResource.getBpmnProcessId());
         entity.setResource(workflowResource.getBpmnXml());
-
-        entity.setTopic(topic);
 
         return entity;
     }
@@ -84,16 +80,6 @@ public class WorkflowEntity
     public void setWorkflowKey(long workflowKey)
     {
         this.workflowKey = workflowKey;
-    }
-
-    public String getTopic()
-    {
-        return topic;
-    }
-
-    public void setTopic(String topic)
-    {
-        this.topic = topic;
     }
 
 }

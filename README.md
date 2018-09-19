@@ -9,7 +9,7 @@ This Spring Boot application connects to [Zeebe](https://zeebe.io) and receive a
 * inspect raw records (events/commands) and search
 * management operations (e.g. new deployment, cancel workflow instance, update payload)
 
-*This is a community project meant for playing around with Zeebe. It is not officially supported by the Zeebe Team (i.e. no gurantees). Everybody is invited to contribute!* 
+*This is a community project meant for playing around with Zeebe. It is not officially supported by the Zeebe Team (i.e. no gurantees). Everybody is invited to contribute!*
 
 
 ## How to build
@@ -21,6 +21,10 @@ Build with Maven
 ## How to run
 
 > [Install and launch MongoDB](http://docs.mongodb.org/manual/installation/)
+
+```
+docker run --name mongo -d -p 27017:27017 mongo:latest
+```
 
 Execute the (Fat) JAR file via
 

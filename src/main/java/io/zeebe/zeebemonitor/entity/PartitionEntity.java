@@ -22,8 +22,6 @@ public class PartitionEntity
     @Id
     private int id;
 
-    private String topicName;
-
     public int getId()
     {
         return id;
@@ -33,17 +31,5 @@ public class PartitionEntity
     {
         this.id = id;
     }
-
-    public String getTopicName()
-    {
-        return topicName;
-    }
-
-    public void setTopicName(String topicName)
-    {
-        this.topicName = topicName;
-    }
-
-
 
 }

@@ -19,8 +19,6 @@ import io.zeebe.zeebemonitor.entity.WorkflowEntity;
 
 public class WorkflowDto
 {
-    private String topic;
-
     private long workflowKey;
     private String bpmnProcessId;
     private int version;
@@ -33,7 +31,6 @@ public class WorkflowDto
     {
         final WorkflowDto dto = new WorkflowDto();
 
-        dto.topic = entity.getTopic();
         dto.workflowKey = entity.getWorkflowKey();
         dto.bpmnProcessId = entity.getBpmnProcessId();
         dto.version = entity.getVersion();
@@ -43,16 +40,6 @@ public class WorkflowDto
         dto.countEnded = countEnded;
 
         return dto;
-    }
-
-    public String getTopic()
-    {
-        return topic;
-    }
-
-    public void setTopic(String topic)
-    {
-        this.topic = topic;
     }
 
     public long getWorkflowKey()

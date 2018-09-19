@@ -15,10 +15,11 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import java.util.*;
-
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.RecordMetadata;
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.RecordMetadata;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.annotation.Id;
 
 public class WorkflowInstanceEntity
@@ -27,7 +28,6 @@ public class WorkflowInstanceEntity
     private String id = UUID.randomUUID().toString();
 
     private int partitionId;
-    private String topicName;
 
     private long workflowInstanceKey;
 
@@ -55,7 +55,6 @@ public class WorkflowInstanceEntity
         final WorkflowInstanceEntity dto = new WorkflowInstanceEntity();
 
         dto.setPartitionId(metadata.getPartitionId());
-        dto.setTopicName(metadata.getTopicName());
 
         dto.setBpmnProcessId(workflowInstanceEvent.getBpmnProcessId());
         dto.setWorkflowVersion(workflowInstanceEvent.getVersion());
@@ -136,16 +135,6 @@ public class WorkflowInstanceEntity
     public void setPartitionId(int partitionId)
     {
         this.partitionId = partitionId;
-    }
-
-    public String getTopicName()
-    {
-        return topicName;
-    }
-
-    public void setTopicName(String topicName)
-    {
-        this.topicName = topicName;
     }
 
     public long getWorkflowInstanceKey()

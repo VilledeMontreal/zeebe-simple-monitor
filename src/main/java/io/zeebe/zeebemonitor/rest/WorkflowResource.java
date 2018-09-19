@@ -15,21 +15,24 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import io.zeebe.client.api.clients.WorkflowClient;
-import io.zeebe.client.api.commands.Workflow;
-import io.zeebe.client.api.events.DeploymentEvent;
+import io.zeebe.gateway.api.clients.WorkflowClient;
+import io.zeebe.gateway.api.commands.Workflow;
+import io.zeebe.gateway.api.events.DeploymentEvent;
 import io.zeebe.zeebemonitor.entity.WorkflowEntity;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import io.zeebe.zeebemonitor.zeebe.WorkflowService;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(path = "/api/workflows")
@@ -89,7 +92,6 @@ public class WorkflowResource
 
         connections
             .getClient()
-            .topicClient(workflow.getTopic())
             .workflowClient()
             .newCreateInstanceCommand()
             .workflowKey(workflowKey)
@@ -101,10 +103,7 @@ public class WorkflowResource
     @RequestMapping(path = "/", method = RequestMethod.POST)
     public void uploadModel(@RequestBody DeploymentDto deployment) throws UnsupportedEncodingException
     {
-        final String deploymentTopic = deployment.getTopic();
-
         final WorkflowClient workflowClient = connections.getClient()
-                .topicClient(deploymentTopic)
                 .workflowClient();
 
         final List<Long> workflowKeys = new ArrayList<>();
@@ -118,7 +117,7 @@ public class WorkflowResource
                 .join();
 
             final List<Long> keys = deploymentEvent
-                    .getDeployedWorkflows()
+                    .getWorkflows()
                     .stream()
                     .map(Workflow::getWorkflowKey)
                     .collect(Collectors.toList());
@@ -126,7 +125,7 @@ public class WorkflowResource
             workflowKeys.addAll(keys);
         }
 
-        workflowService.loadWorkflowsByKey(deploymentTopic, workflowKeys);
+        workflowService.loadWorkflowsByKey(workflowKeys);
     }
 
 }

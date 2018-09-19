@@ -20,19 +20,7 @@ import org.springframework.data.annotation.Id;
 public class SubscriptionEntity
 {
     @Id
-    private String topicName;
-
     private String subscriptionName;
-
-    public String getTopicName()
-    {
-        return topicName;
-    }
-
-    public void setTopicName(String topicName)
-    {
-        this.topicName = topicName;
-    }
 
     public String getSubscriptionName()
     {

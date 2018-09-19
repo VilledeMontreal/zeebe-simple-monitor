@@ -15,8 +15,8 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.ZeebeObjectMapper;
+import io.zeebe.gateway.api.events.WorkflowInstanceEvent;
+import io.zeebe.gateway.api.record.ZeebeObjectMapper;
 import io.zeebe.zeebemonitor.entity.RecordEntity;
 import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
 import io.zeebe.zeebemonitor.repository.RecordRepository;
@@ -56,7 +56,6 @@ public class WorkflowInstanceResource
 
         connections
             .getClient()
-            .topicClient(workflowInstance.getTopicName())
             .workflowClient()
             .newCancelInstanceCommand(event)
             .send()
@@ -75,7 +74,6 @@ public class WorkflowInstanceResource
 
         connections
             .getClient()
-            .topicClient(workflowInstance.getTopicName())
             .workflowClient()
             .newUpdatePayloadCommand(event)
             .payload(payload)

@@ -24,20 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PartitionRepositoryImpl implements PartitionRepositoryCustom
-{
+public class PartitionRepositoryImpl {
     @Autowired
     private PartitionRepository repository;
 
-    @Override
-    public List<String> getTopicNames()
-    {
-        return repository
-                .findAll()
-                .stream()
-                .filter(p -> p.getId() != Protocol.SYSTEM_PARTITION)
-                .map(PartitionEntity::getTopicName)
-                .distinct()
-                .collect(Collectors.toList());
-    }
 }

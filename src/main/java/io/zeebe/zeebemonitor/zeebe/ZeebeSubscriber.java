@@ -321,7 +321,7 @@ public class ZeebeSubscriber
       final RecordMetadata metadata = event.getMetadata();
       
       if (event.getRetries()==0) { // validate! haven't seen any with 0 in the records
-        long workflowInstanceKey = (long) event.getHeaders().get("workflowInstanceKey");
+        int workflowInstanceKey = (int) event.getHeaders().get("workflowInstanceKey");
         final WorkflowInstanceEntity workflowInstance = workflowInstanceRepository.findByWorkflowInstanceKeyAndPartitionId(workflowInstanceKey, metadata.getPartitionId());   
        
         workflowInstance.setLastFailedJobRecordEventPosition(event.getMetadata().getPosition());

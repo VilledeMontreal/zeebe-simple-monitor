@@ -21,64 +21,79 @@ import io.zeebe.exporter.record.Record;
 import io.zeebe.exporter.spi.Exporter;
 import org.slf4j.Logger;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class JdbcExporter implements Exporter {
 
-    private Logger log;
-    private Controller controller;
-    private JdbcExporterConfiguration configuration;
+  private Logger log;
+  private Controller controller;
+  private JdbcExporterConfiguration configuration;
 
-    private long lastPosition = -1;
+  private long lastPosition = -1;
+
   private Connection connection;
 
   @Override
-    public void configure(Context context) {
-      log = context.getLogger();
-      configuration =
-        context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
+  public void configure(Context context) {
+    log = context.getLogger();
+    configuration = context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
 
-      log.debug("Exporter configured with {}", configuration);
-      try {
-        Class.forName(configuration.driverName);
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException("Driver not found in class path", e);
-      }
+    log.debug("Exporter configured with {}", configuration);
+    try {
+      Class.forName(configuration.driverName);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Driver not found in class path", e);
+    }
+  }
+
+  @Override
+  public void open(Controller controller) {
+    this.controller = controller;
+
+    try {
+      connection =
+          DriverManager.getConnection(
+              configuration.jdbcUrl, configuration.userName, configuration.password);
+    } catch (SQLException e) {
+      throw new RuntimeException("Error on opening database.", e);
     }
 
-    @Override
-    public void open(Controller controller) {
-      this.controller = controller;
+    createTables();
+    log.info("Exporter opened");
+  }
 
-      try {
-        connection = DriverManager.getConnection(configuration.jdbcUrl, configuration.userName, configuration.password);
-      } catch (SQLException e) {
-        throw new RuntimeException("Error on opening database.", e);
-      }
+  private void createTables() {
+    try {
+      final Path createTablesPath =
+          Paths.get(JdbcExporter.class.getResource("CREATE_SCHEMA.sql").toURI());
+      final String sql = new String(Files.readAllBytes(createTablesPath));
 
-      // create schema
+      final Statement statement = connection.createStatement();
+      statement.execute(sql);
 
-
-
-      log.info("Exporter opened");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-
-    @Override
-    public void close() {
-      try {
-        connection.close();
-      } catch (Exception e) {
-        log.warn("Failed to close jdbc connection", e);
-      }
-      log.info("Exporter closed");
+  @Override
+  public void close() {
+    try {
+      connection.close();
+    } catch (Exception e) {
+      log.warn("Failed to close jdbc connection", e);
     }
+    log.info("Exporter closed");
+  }
 
-    @Override
-    public void export(Record record) {
-      lastPosition = record.getPosition();
-    }
-
+  @Override
+  public void export(Record record) {
+    lastPosition = record.getPosition();
+  }
 }

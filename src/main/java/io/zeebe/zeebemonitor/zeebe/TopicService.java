@@ -15,15 +15,17 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
-import io.zeebe.gateway.api.commands.Partition;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
-import io.zeebe.zeebemonitor.entity.PartitionEntity;
-import io.zeebe.zeebemonitor.repository.PartitionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.api.commands.PartitionInfo;
+import io.zeebe.zeebemonitor.entity.PartitionEntity;
+import io.zeebe.zeebemonitor.repository.PartitionRepository;
 
 @Component
 public class TopicService
@@ -38,16 +40,18 @@ public class TopicService
     private ZeebeSubscriber subscriber;
 
     @Async
-    public void synchronizeAsync()
+    public void synchronizeAsync() throws InterruptedException, ExecutionException
     {
         synchronizeWithBroker();
     }
 
-    public void synchronizeWithBroker()
+    public void synchronizeWithBroker() throws InterruptedException, ExecutionException
     {
-        final List<Partition> partitions =
+        // yes - this will totally break in some scnearios! Quick hack for the moment until
+        // tools are migrated to 0.12
+        final List<PartitionInfo> partitions =
             connectionService.getClient()
-                .newPartitionsRequest().send().join().getPartitions();
+                .newTopologyRequest().send().get().getBrokers().get(0).getPartitions();
 
         final List<Integer> availablePartitions = new ArrayList<>();
         for (PartitionEntity partitionEntity : partitionRepository.findAll())
@@ -55,12 +59,12 @@ public class TopicService
             availablePartitions.add(partitionEntity.getId());
         }
 
-        partitions.removeIf(p -> availablePartitions.contains(p.getId()));
+        partitions.removeIf(p -> availablePartitions.contains(p.getPartitionId()));
 
         partitions.forEach(p ->
         {
             final PartitionEntity partitionEntity = new PartitionEntity();
-            partitionEntity.setId(p.getId());
+            partitionEntity.setId(p.getPartitionId());
 
             partitionRepository.save(partitionEntity);
         });

@@ -15,17 +15,20 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
-import io.zeebe.gateway.api.commands.Workflow;
-import io.zeebe.gateway.api.commands.WorkflowResource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
-import io.zeebe.zeebemonitor.entity.WorkflowEntity;
-import io.zeebe.zeebemonitor.repository.PartitionRepository;
-import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.api.commands.Workflow;
+import io.zeebe.gateway.api.commands.WorkflowResource;
+import io.zeebe.zeebemonitor.entity.WorkflowEntity;
+import io.zeebe.zeebemonitor.repository.PartitionRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 
 @Component
 public class WorkflowService

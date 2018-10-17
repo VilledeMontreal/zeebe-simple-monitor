@@ -69,7 +69,7 @@ public class ZeebeSimpleMonitorApp
     }
 
     @Scheduled(fixedRate = 10_000)
-    public void synchronizeWithBroker()
+    public void synchronizeWithBroker() throws InterruptedException, ExecutionException
     {
         if (connectionService.isConnected())
         {

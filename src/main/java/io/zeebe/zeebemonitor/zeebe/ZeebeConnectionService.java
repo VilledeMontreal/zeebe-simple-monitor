@@ -15,13 +15,19 @@
  */
 package io.zeebe.zeebemonitor.zeebe;
 
-import io.zeebe.gateway.ZeebeClient;
-import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
-import io.zeebe.zeebemonitor.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import io.zeebe.gateway.ZeebeClient;
+import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
+import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
+import io.zeebe.zeebemonitor.repository.PartitionRepository;
+import io.zeebe.zeebemonitor.repository.RecordRepository;
+import io.zeebe.zeebemonitor.repository.SubscriptionRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 
 @Component
 public class ZeebeConnectionService

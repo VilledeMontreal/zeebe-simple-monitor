@@ -18,7 +18,13 @@ package io.zeebe.monitor;
 import io.zeebe.exporter.context.Context;
 import io.zeebe.exporter.context.Controller;
 import io.zeebe.exporter.record.Record;
+import io.zeebe.exporter.record.value.DeploymentRecordValue;
+import io.zeebe.exporter.record.value.IncidentRecordValue;
+import io.zeebe.exporter.record.value.WorkflowInstanceRecordValue;
+import io.zeebe.exporter.record.value.deployment.DeployedWorkflow;
+import io.zeebe.exporter.record.value.deployment.DeploymentResource;
 import io.zeebe.exporter.spi.Exporter;
+import io.zeebe.protocol.clientapi.ValueType;
 import org.slf4j.Logger;
 
 import java.nio.file.Files;
@@ -28,44 +34,70 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class JdbcExporter implements Exporter {
 
+  private static final String INSERT_WORKFLOW =
+      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES (%s, %d, %s, %d, %s)";
+  private static final String INSERT_WORKFLOW_INSTANCE =
+      "INSERT INTO WORKFLOW_INSTANCE"
+          + " (id, partitionId, key_, intent, workflowInstanceKey, activityId, scopeInstanceKey, payload, workflowKey)"
+          + " VALUES "
+          + "(%s, %d, %d, %s, %d, %s, %d, %s, %d)";
+
+  private static final String INSERT_INCIDENT =
+      "INSERT INTO INCIDENT"
+          + " (id, key_, workflowInstanceKey, activityInstanceKey, jobKey, errorType, errorMsg)"
+          + " VALUES "
+          + "(%s, %d, %d, %d, %d, %s, %s)";
+  public static final int BATCH_SIZE = 100;
+
+  private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
+  private final List<String> insertStatements;
+
   private Logger log;
-  private Controller controller;
   private JdbcExporterConfiguration configuration;
-
-  private long lastPosition = -1;
-
   private Connection connection;
 
+  public JdbcExporter() {
+    insertCreatorPerType.put(ValueType.DEPLOYMENT, this::createWorkflowTableInserts);
+    insertCreatorPerType.put(ValueType.WORKFLOW_INSTANCE, this::createWorkflowInstanceTableInsert);
+    insertCreatorPerType.put(ValueType.INCIDENT, this::createIncidentTableInsert);
+
+    insertStatements = new ArrayList<>();
+  }
+
   @Override
-  public void configure(Context context) {
+  public void configure(final Context context) {
     log = context.getLogger();
     configuration = context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
 
     log.debug("Exporter configured with {}", configuration);
     try {
       Class.forName(configuration.driverName);
-    } catch (ClassNotFoundException e) {
+    } catch (final ClassNotFoundException e) {
       throw new RuntimeException("Driver not found in class path", e);
     }
   }
 
   @Override
-  public void open(Controller controller) {
-    this.controller = controller;
-
+  public void open(final Controller controller) {
     try {
       connection =
           DriverManager.getConnection(
               configuration.jdbcUrl, configuration.userName, configuration.password);
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       throw new RuntimeException("Error on opening database.", e);
     }
 
     createTables();
     log.info("Exporter opened");
+
+    controller.scheduleTask(Duration.ofSeconds(15), this::tryToExecuteInsertBatch);
   }
 
   private void createTables() {
@@ -77,7 +109,7 @@ public class JdbcExporter implements Exporter {
       final Statement statement = connection.createStatement();
       statement.execute(sql);
 
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -86,14 +118,116 @@ public class JdbcExporter implements Exporter {
   public void close() {
     try {
       connection.close();
-    } catch (Exception e) {
+    } catch (final Exception e) {
       log.warn("Failed to close jdbc connection", e);
     }
     log.info("Exporter closed");
   }
 
   @Override
-  public void export(Record record) {
-    lastPosition = record.getPosition();
+  public void export(final Record record) {
+    final Consumer<Record> recordConsumer =
+        insertCreatorPerType.get(record.getMetadata().getValueType());
+    if (recordConsumer != null) {
+      recordConsumer.accept(record);
+
+      if (insertStatements.size() > BATCH_SIZE) {
+        tryToExecuteInsertBatch();
+      }
+    }
+  }
+
+  private void tryToExecuteInsertBatch() {
+    try {
+      final Statement statement = connection.createStatement();
+      for (final String insert : insertStatements) {
+        statement.addBatch(insert);
+      }
+      statement.executeBatch();
+      insertStatements.clear();
+    } catch (final Exception e) {
+      log.error("Batch insert failed!", e);
+    }
+  }
+
+  private void createWorkflowTableInserts(final Record record) {
+    final long key = record.getKey();
+    final DeploymentRecordValue deploymentRecordValue = (DeploymentRecordValue) record.getValue();
+
+    final List<DeploymentResource> resources = deploymentRecordValue.getResources();
+    for (final DeploymentResource resource : resources) {
+      final List<DeployedWorkflow> deployedWorkflows =
+          deploymentRecordValue
+              .getDeployedWorkflows()
+              .stream()
+              .filter(w -> w.getResourceName().equals(resource.getResourceName()))
+              .collect(Collectors.toList());
+      for (final DeployedWorkflow deployedWorkflow : deployedWorkflows) {
+        final String insertStatement =
+            String.format(
+                INSERT_WORKFLOW,
+                createId(),
+                key,
+                deployedWorkflow.getBpmnProcessId(),
+                deployedWorkflow.getVersion(),
+                resource);
+        insertStatements.add(insertStatement);
+      }
+    }
+  }
+
+  private void createWorkflowInstanceTableInsert(final Record record) {
+    final long key = record.getKey();
+    final int partitionId = record.getMetadata().getPartitionId();
+    final String intent = record.getMetadata().getIntent().name();
+
+    final WorkflowInstanceRecordValue workflowInstanceRecordValue =
+        (WorkflowInstanceRecordValue) record.getValue();
+    final long workflowInstanceKey = workflowInstanceRecordValue.getWorkflowInstanceKey();
+    final String activityId = workflowInstanceRecordValue.getActivityId();
+    final long scopeInstanceKey = workflowInstanceRecordValue.getScopeInstanceKey();
+    final String payload = workflowInstanceRecordValue.getPayload();
+    final long workflowKey = workflowInstanceRecordValue.getWorkflowKey();
+
+    final String insertStatement =
+        String.format(
+            INSERT_WORKFLOW_INSTANCE,
+            createId(),
+            key,
+            partitionId,
+            intent,
+            workflowInstanceKey,
+            activityId,
+            scopeInstanceKey,
+            payload,
+            workflowKey);
+    insertStatements.add(insertStatement);
+  }
+
+  private void createIncidentTableInsert(final Record record) {
+    final long key = record.getKey();
+
+    final IncidentRecordValue incidentRecordValue = (IncidentRecordValue) record.getValue();
+    final long workflowInstanceKey = incidentRecordValue.getWorkflowInstanceKey();
+    final long activityInstanceKey = incidentRecordValue.getActivityInstanceKey();
+    final long jobKey = incidentRecordValue.getJobKey();
+    final String errorType = incidentRecordValue.getErrorType();
+    final String errorMessage = incidentRecordValue.getErrorMessage();
+
+    final String insertStatement =
+        String.format(
+            INSERT_INCIDENT,
+            createId(),
+            key,
+            workflowInstanceKey,
+            activityInstanceKey,
+            jobKey,
+            errorType,
+            errorMessage);
+    insertStatements.add(insertStatement);
+  }
+
+  private String createId() {
+    return UUID.randomUUID().toString();
   }
 }

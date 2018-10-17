@@ -27,6 +27,9 @@ import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.protocol.clientapi.ValueType;
 import org.slf4j.Logger;
 
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -90,6 +93,7 @@ public class JdbcExporter implements Exporter {
       connection =
           DriverManager.getConnection(
               configuration.jdbcUrl, configuration.userName, configuration.password);
+      connection.setAutoCommit(true);
     } catch (final SQLException e) {
       throw new RuntimeException("Error on opening database.", e);
     }
@@ -101,14 +105,17 @@ public class JdbcExporter implements Exporter {
   }
 
   private void createTables() {
-    try {
-      final Path createTablesPath =
-          Paths.get(JdbcExporter.class.getResource("CREATE_SCHEMA.sql").toURI());
-      final String sql = new String(Files.readAllBytes(createTablesPath));
+    try (final Statement statement = connection.createStatement()) {
 
-      final Statement statement = connection.createStatement();
-      statement.execute(sql);
+      final URL resource = JdbcExporter.class.getResource("/CREATE_SCHEMA.sql");
+      final URI uri = resource.toURI();
+      FileSystems.newFileSystem(uri, Collections.EMPTY_MAP);
+      final Path path = Paths.get(uri);
+      final byte[] bytes = Files.readAllBytes(path);
+      final String sql = new String(bytes);
 
+      log.info("Create tables:\n{}", sql);
+      statement.executeUpdate(sql);
     } catch (final Exception e) {
       throw new RuntimeException(e);
     }
@@ -138,8 +145,7 @@ public class JdbcExporter implements Exporter {
   }
 
   private void tryToExecuteInsertBatch() {
-    try {
-      final Statement statement = connection.createStatement();
+    try (final Statement statement = connection.createStatement()) {
       for (final String insert : insertStatements) {
         statement.addBatch(insert);
       }

@@ -15,16 +15,17 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import java.util.UUID;
 import org.springframework.data.annotation.Id;
 
 public class IncidentEntity {
-  @Id private String id = UUID.randomUUID().toString();
+  @Id private String id;
 
   private long key;
 
   private long workflowInstanceKey;
-  private String activityInstanceKey;
+  private long activityInstanceKey;
+  private long jobKey;
+
   private String errorType;
   private String errorMessage;
 
@@ -64,11 +65,19 @@ public class IncidentEntity {
     this.workflowInstanceKey = workflowInstanceKey;
   }
 
-  public String getActivityInstanceKey() {
+  public long getActivityInstanceKey() {
     return activityInstanceKey;
   }
 
-  public void setActivityInstanceKey(String activityInstanceKey) {
+  public void setActivityInstanceKey(long activityInstanceKey) {
     this.activityInstanceKey = activityInstanceKey;
+  }
+
+  public long getJobKey() {
+    return jobKey;
+  }
+
+  public void setJobKey(long jobKey) {
+    this.jobKey = jobKey;
   }
 }

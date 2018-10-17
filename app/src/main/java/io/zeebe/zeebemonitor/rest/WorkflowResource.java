@@ -15,118 +15,83 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import io.zeebe.client.api.clients.WorkflowClient;
-import io.zeebe.client.api.commands.Workflow;
-import io.zeebe.client.api.events.DeploymentEvent;
 import io.zeebe.zeebemonitor.entity.WorkflowEntity;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowRepository;
-import io.zeebe.zeebemonitor.zeebe.WorkflowService;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(path = "/api/workflows")
-public class WorkflowResource
-{
-    @Autowired
-    private ZeebeConnectionService connections;
+public class WorkflowResource {
+  @Autowired private ZeebeConnectionService connections;
 
-    @Autowired
-    private WorkflowRepository workflowRepository;
+  @Autowired private WorkflowRepository workflowRepository;
 
-    @Autowired
-    private WorkflowInstanceRepository workflowInstanceRepository;
+  @Autowired private WorkflowInstanceRepository workflowInstanceRepository;
 
-    @Autowired
-    private WorkflowService workflowService;
-
-    @RequestMapping("/")
-    public List<WorkflowDto> getWorkflows()
-    {
-        final List<WorkflowDto> dtos = new ArrayList<>();
-        for (WorkflowEntity workflowEntity : workflowRepository.findAll())
-        {
-            final WorkflowDto dto = toDto(workflowEntity);
-            dtos.add(dto);
-        }
-
-        return dtos;
+  @RequestMapping("/")
+  public List<WorkflowDto> getWorkflows() {
+    final List<WorkflowDto> dtos = new ArrayList<>();
+    for (WorkflowEntity workflowEntity : workflowRepository.findAll()) {
+      final WorkflowDto dto = toDto(workflowEntity);
+      dtos.add(dto);
     }
 
-    @RequestMapping(path = "/{workflowKey}")
-    public WorkflowDto findWorkflow(@PathVariable("workflowKey") long workflowKey)
-    {
-        return workflowRepository
-                .findById(workflowKey)
-                .map(this::toDto)
-                .orElse(null);
+    return dtos;
+  }
+
+  @RequestMapping(path = "/{workflowKey}")
+  public WorkflowDto findWorkflow(@PathVariable("workflowKey") long workflowKey) {
+    return workflowRepository.findById(workflowKey).map(this::toDto).orElse(null);
+  }
+
+  private WorkflowDto toDto(WorkflowEntity workflowEntity) {
+    final long workflowKey = workflowEntity.getWorkflowKey();
+
+    // TODO count the instances
+    final long countRunning = 0; // workflowInstanceRepository.countRunningInstances(workflowKey);
+    final long countEnded = 0; // workflowInstanceRepository.countEndedInstances(workflowKey);
+
+    final WorkflowDto dto = WorkflowDto.from(workflowEntity, countRunning, countEnded);
+    return dto;
+  }
+
+  @RequestMapping(path = "/{workflowKey}", method = RequestMethod.POST)
+  public void createWorkflowInstance(
+      @PathVariable("workflowKey") long workflowKey, @RequestBody String payload) {
+
+    connections
+        .getClient()
+        .workflowClient()
+        .newCreateInstanceCommand()
+        .workflowKey(workflowKey)
+        .payload(payload)
+        .send()
+        .join();
+  }
+
+  @RequestMapping(path = "/", method = RequestMethod.POST)
+  public void uploadModel(@RequestBody DeploymentDto deployment)
+      throws UnsupportedEncodingException {
+
+    final WorkflowClient workflowClient = connections.getClient().workflowClient();
+
+    for (FileDto file : deployment.getFiles()) {
+      workflowClient
+          .newDeployCommand()
+          .addResourceBytes(file.getContent(), file.getFilename())
+          .send()
+          .join();
     }
-
-    private WorkflowDto toDto(WorkflowEntity workflowEntity)
-    {
-        final long workflowKey = workflowEntity.getWorkflowKey();
-
-        final long countRunning = workflowInstanceRepository.countRunningInstances(workflowKey);
-        final long countEnded = workflowInstanceRepository.countEndedInstances(workflowKey);
-
-        final WorkflowDto dto = WorkflowDto.from(workflowEntity, countRunning, countEnded);
-        return dto;
-    }
-
-    @RequestMapping(path = "/{workflowKey}", method = RequestMethod.POST)
-    public void createWorkflowInstance(@PathVariable("workflowKey") long workflowKey, @RequestBody String payload)
-    {
-        final WorkflowEntity workflow = workflowRepository
-                .findById(workflowKey)
-                .orElseThrow(() -> new RuntimeException("no workflow found with key: " + workflowKey));
-
-        connections
-            .getClient()
-            .topicClient(workflow.getTopic())
-            .workflowClient()
-            .newCreateInstanceCommand()
-            .workflowKey(workflowKey)
-            .payload(payload)
-            .send()
-            .join();
-    }
-
-    @RequestMapping(path = "/", method = RequestMethod.POST)
-    public void uploadModel(@RequestBody DeploymentDto deployment) throws UnsupportedEncodingException
-    {
-        final String deploymentTopic = deployment.getTopic();
-
-        final WorkflowClient workflowClient = connections.getClient()
-                .topicClient(deploymentTopic)
-                .workflowClient();
-
-        final List<Long> workflowKeys = new ArrayList<>();
-
-        for (FileDto file : deployment.getFiles())
-        {
-            final DeploymentEvent deploymentEvent = workflowClient
-                .newDeployCommand()
-                .addResourceBytes(file.getContent(), file.getFilename())
-                .send()
-                .join();
-
-            final List<Long> keys = deploymentEvent
-                    .getDeployedWorkflows()
-                    .stream()
-                    .map(Workflow::getWorkflowKey)
-                    .collect(Collectors.toList());
-
-            workflowKeys.addAll(keys);
-        }
-
-        workflowService.loadWorkflowsByKey(deploymentTopic, workflowKeys);
-    }
-
+  }
 }

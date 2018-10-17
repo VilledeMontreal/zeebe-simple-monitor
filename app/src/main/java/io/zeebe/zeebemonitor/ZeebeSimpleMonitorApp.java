@@ -15,93 +15,64 @@
  */
 package io.zeebe.zeebemonitor;
 
-import java.util.concurrent.*;
-
+import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-
-import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
-import io.zeebe.zeebemonitor.zeebe.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.scheduling.annotation.*;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @SpringBootApplication
 @EnableScheduling
 @EnableAsync
-public class ZeebeSimpleMonitorApp
-{
-    private static final Logger LOG = LoggerFactory.getLogger(ZeebeSimpleMonitorApp.class);
+public class ZeebeSimpleMonitorApp {
+  private static final Logger LOG = LoggerFactory.getLogger(ZeebeSimpleMonitorApp.class);
 
-    @Autowired
-    private ZeebeConnectionService connectionService;
+  @Value("${io.zeebe.monitor.connectionString:localhost:26500}")
+  private String connectionString;
 
-    @Autowired
-    private ConfigurationRepository configurationRepository;
+  @Autowired private ZeebeConnectionService connectionService;
 
-    @Autowired
-    private WorkflowService workflowService;
+  public static void main(String... args) {
+    SpringApplication.run(ZeebeSimpleMonitorApp.class, args);
+  }
 
-    @Autowired
-    private TopicService topicService;
+  @PostConstruct
+  public void initConnection() {
+    LOG.info("initialize connection");
 
-    public static void main(String... args)
-    {
-        SpringApplication.run(ZeebeSimpleMonitorApp.class, args);
-    }
+    connectionService.connect(connectionString);
+  }
 
-    @PostConstruct
-    public void initConnection()
-    {
-        LOG.info("initialize connection");
+  @PreDestroy
+  public void close() {
+    connectionService.disconnect();
+  }
 
-        configurationRepository.getConfiguration().ifPresent(config ->
-        {
-            LOG.debug("configuration found");
+  @Bean
+  public ScheduledExecutorService scheduledExecutor() {
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-            connectionService.connect(config);
-        });
-    }
+    return executor;
+  }
 
-    @Scheduled(fixedRate = 10_000)
-    public void synchronizeWithBroker()
-    {
-        if (connectionService.isConnected())
-        {
-            topicService.synchronizeWithBroker();
-
-            workflowService.synchronizeWithBroker();
-        }
-    }
-
-    @PreDestroy
-    public void close()
-    {
-        connectionService.disconnect();
-    }
-
-    @Bean
-    public ScheduledExecutorService scheduledExecutor()
-    {
-        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-
-        return executor;
-    }
-
-    @Bean
-    public Executor asyncExecutor()
-    {
-        final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(1);
-        executor.setMaxPoolSize(1);
-        executor.setQueueCapacity(32);
-        executor.initialize();
-        return executor;
-    }
-
+  @Bean
+  public Executor asyncExecutor() {
+    final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(1);
+    executor.setMaxPoolSize(1);
+    executor.setQueueCapacity(32);
+    executor.initialize();
+    return executor;
+  }
 }

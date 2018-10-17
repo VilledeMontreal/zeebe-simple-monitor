@@ -15,125 +15,54 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import io.zeebe.client.api.events.JobEvent;
-import io.zeebe.client.api.events.WorkflowInstanceEvent;
-import io.zeebe.client.api.record.ZeebeObjectMapper;
-import io.zeebe.zeebemonitor.entity.RecordEntity;
 import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
-import io.zeebe.zeebemonitor.repository.RecordRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/instances")
-public class WorkflowInstanceResource
-{
+public class WorkflowInstanceResource {
 
-    @Autowired
-    private ZeebeConnectionService connections;
+  @Autowired private ZeebeConnectionService connections;
 
-    @Autowired
-    private WorkflowInstanceRepository workflowInstanceRepository;
+  @Autowired private WorkflowInstanceRepository workflowInstanceRepository;
 
-    @Autowired
-    private RecordRepository recordRepository;
+  @RequestMapping("/")
+  public Iterable<WorkflowInstanceEntity> getWorkflowInstances() {
+    return workflowInstanceRepository.findAll();
+  }
 
-    @RequestMapping("/")
-    public Iterable<WorkflowInstanceEntity> getWorkflowInstances()
-    {
-        return workflowInstanceRepository.findAll();
-    }
+  @RequestMapping(path = "/{key}")
+  public Iterable<WorkflowInstanceEntity> getWorkflowInstance(@PathVariable("key") long key) {
+    // TODO find all events for the workflow instance
+    return workflowInstanceRepository.findAll();
+  }
 
-    @RequestMapping(path = "/{id}", method = RequestMethod.DELETE)
-    public void cancelWorkflowInstance(@PathVariable("id") String id) throws Exception
-    {
-        final WorkflowInstanceEntity workflowInstance = workflowInstanceRepository
-                .findById(id)
-                .orElseThrow(() -> new RuntimeException("no workflow instance found with id: " + id));
+  @RequestMapping(path = "/{key}", method = RequestMethod.DELETE)
+  public void cancelWorkflowInstance(@PathVariable("key") long key) throws Exception {
+    connections.getClient().workflowClient().newCancelInstanceCommand(key).send().join();
+  }
 
-        final WorkflowInstanceEvent event = findWorkflowInstanceEvent(workflowInstance.getPartitionId(), workflowInstance.getLastWorkflowInstanceEventPosition());
+  @RequestMapping(path = "/{key}/update-payload", method = RequestMethod.PUT)
+  public void updatePayload(@PathVariable("key") long key, @RequestBody String payload)
+      throws Exception {
+    connections
+        .getClient()
+        .workflowClient()
+        .newUpdatePayloadCommand(key)
+        .payload(payload)
+        .send()
+        .join();
+  }
 
-        connections
-            .getClient()
-            .topicClient(workflowInstance.getTopicName())
-            .workflowClient()
-            .newCancelInstanceCommand(event)
-            .send()
-            .join();
-    }
-
-    @RequestMapping(path = "/{id}/update-payload", method = RequestMethod.PUT)
-    public void updatePayload(@PathVariable("id") String id, @RequestBody String payload) throws Exception
-    {
-
-        final WorkflowInstanceEntity workflowInstance = workflowInstanceRepository
-                .findById(id)
-                .orElseThrow(() -> new RuntimeException("no workflow instance found with id: " + id));
-
-        final WorkflowInstanceEvent event = findWorkflowInstanceEvent(workflowInstance.getPartitionId(), workflowInstance.getLastEventPosition());
-
-        connections
-            .getClient()
-            .topicClient(workflowInstance.getTopicName())
-            .workflowClient()
-            .newUpdatePayloadCommand(event)
-            .payload(payload)
-            .send()
-            .join();
-    }
-    
-    @RequestMapping(path = "/{id}/update-retries", method = RequestMethod.PUT)
-    public void updateRetries(@PathVariable("id") String id) throws Exception
-    {
-
-        final WorkflowInstanceEntity workflowInstance = workflowInstanceRepository
-                .findById(id)
-                .orElseThrow(() -> new RuntimeException("no workflow instance found with id: " + id));
-
-        if (workflowInstance.getLastFailedJobRecordEventPosition()>0) {          
-          final JobEvent event = findJobEvent(workflowInstance.getPartitionId(), workflowInstance.getLastFailedJobRecordEventPosition());
-          
-          connections
-            .getClient()
-            .topicClient(workflowInstance.getTopicName())
-            .jobClient()
-            .newUpdateRetriesCommand(event)
-            .retries(2)
-            .send()
-            .join();
-        } else {
-          throw new IllegalArgumentException("Couldn't update retries, haven't found failed job");
-        }
-    }    
-
-    private WorkflowInstanceEvent findWorkflowInstanceEvent(int partitionId, long position) throws Exception
-    {
-        final RecordEntity record = recordRepository.findByPartitionIdAndPosition(partitionId, position);
-
-        if (record == null)
-        {
-            throw new RuntimeException(String.format("no record found at partition '%d' and position '%d'", partitionId, position));
-        }
-
-        final ZeebeObjectMapper objectMapper = connections.getClient().objectMapper();
-
-        return objectMapper.fromJson(record.getContentAsJson(), WorkflowInstanceEvent.class);
-    }
-    
-    private JobEvent findJobEvent(int partitionId, long position) throws Exception
-    {
-        final RecordEntity record = recordRepository.findByPartitionIdAndPosition(partitionId, position);
-
-        if (record == null)
-        {
-            throw new RuntimeException(String.format("no record found at partition '%d' and position '%d'", partitionId, position));
-        }
-
-        final ZeebeObjectMapper objectMapper = connections.getClient().objectMapper();
-
-        return objectMapper.fromJson(record.getContentAsJson(), JobEvent.class);
-    }    
-
+  @RequestMapping(path = "/{key}/update-retries", method = RequestMethod.PUT)
+  public void updateRetries(@PathVariable("key") long key) throws Exception {
+    connections.getClient().jobClient().newUpdateRetriesCommand(key).retries(2).send().join();
+  }
 }

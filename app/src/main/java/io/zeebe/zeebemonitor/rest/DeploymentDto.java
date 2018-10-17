@@ -17,30 +17,14 @@ package io.zeebe.zeebemonitor.rest;
 
 import java.util.List;
 
-public class DeploymentDto
-{
-    private String topic;
+public class DeploymentDto {
+  private List<FileDto> files;
 
-    private List<FileDto> files;
+  public List<FileDto> getFiles() {
+    return files;
+  }
 
-    public List<FileDto> getFiles()
-    {
-        return files;
-    }
-
-    public void setFiles(List<FileDto> files)
-    {
-        this.files = files;
-    }
-
-    public String getTopic()
-    {
-        return topic;
-    }
-
-    public void setTopic(String topic)
-    {
-        this.topic = topic;
-    }
-
+  public void setFiles(List<FileDto> files) {
+    this.files = files;
+  }
 }

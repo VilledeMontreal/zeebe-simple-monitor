@@ -15,11 +15,10 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
-import java.util.UUID;
 import org.springframework.data.annotation.Id;
 
 public class WorkflowInstanceEntity {
-  @Id private String id = UUID.randomUUID().toString();
+  @Id private String id;
 
   private int partitionId;
   private long key;

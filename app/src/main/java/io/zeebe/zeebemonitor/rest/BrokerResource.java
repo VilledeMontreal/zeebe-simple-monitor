@@ -15,87 +15,31 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
-import java.util.List;
-
 import io.zeebe.client.api.commands.BrokerInfo;
-import io.zeebe.zeebemonitor.entity.ConfigurationEntity;
-import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Component
 @RestController
 @RequestMapping("/api/broker")
-public class BrokerResource
-{
+public class BrokerResource {
 
-    @Autowired
-    private ConfigurationRepository configurationRepository;
+  @Autowired private ZeebeConnectionService zeebeConnections;
 
-    @Autowired
-    private ZeebeConnectionService zeebeConnections;
+  @RequestMapping(path = "/check-connection")
+  public boolean checkConnection() {
+    return zeebeConnections.isConnected();
+  }
 
-    @RequestMapping("/config")
-    public ConfigurationEntity getConfiguration()
-    {
-        return configurationRepository
-                .getConfiguration()
-                .orElseGet(() -> null);
-    }
+  @RequestMapping(path = "/topology")
+  public List<BrokerInfo> getTopology() {
+    final List<BrokerInfo> brokers =
+        zeebeConnections.getClient().newTopologyRequest().send().join().getBrokers();
 
-    @RequestMapping(path = "/connect", method = RequestMethod.POST)
-    public void connect()
-    {
-        configurationRepository.getConfiguration().ifPresent(config ->
-        {
-            if (!zeebeConnections.isConnected())
-            {
-                zeebeConnections.connect(config);
-            }
-        });
-    }
-
-    @RequestMapping(path = "/setup", method = RequestMethod.POST)
-    public ConfigurationEntity setup(@RequestBody String connectionString)
-    {
-        configurationRepository.getConfiguration().ifPresent(config ->
-        {
-            throw new RuntimeException("Monitor is already connected to: " + config.getConnectionString());
-        });
-
-        final ConfigurationEntity config = new ConfigurationEntity(connectionString);
-        configurationRepository.save(config);
-
-        zeebeConnections.connect(config);
-
-        return config;
-    }
-
-    @RequestMapping(path = "/check-connection")
-    public boolean checkConnection()
-    {
-        return zeebeConnections.isConnected();
-    }
-
-    @RequestMapping(path = "/cleanup", method = RequestMethod.POST)
-    public void cleanup()
-    {
-        zeebeConnections.deleteAllData();
-    }
-
-    @RequestMapping(path = "/topology")
-    public List<BrokerInfo> getTopology()
-    {
-        final List<BrokerInfo> brokers = zeebeConnections
-            .getClient()
-            .newTopologyRequest()
-            .send()
-            .join()
-            .getBrokers();
-
-        return brokers;
-    }
-
+    return brokers;
+  }
 }

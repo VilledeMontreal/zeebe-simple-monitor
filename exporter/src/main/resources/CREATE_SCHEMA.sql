@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS WORKFLOW_INSTANCE
 	workflowInstanceKey BIGINT,
 	activityId VARCHAR,
 	scopeInstanceKey BIGINT,
-	payload BLOB,
+	payload VARCHAR,
 	workflowKey BIGINT
 );
 

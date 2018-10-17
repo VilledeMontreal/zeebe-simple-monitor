@@ -24,6 +24,7 @@ import io.zeebe.exporter.record.value.WorkflowInstanceRecordValue;
 import io.zeebe.exporter.record.value.deployment.DeployedWorkflow;
 import io.zeebe.exporter.record.value.deployment.DeploymentResource;
 import io.zeebe.exporter.spi.Exporter;
+import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import org.slf4j.Logger;
 
@@ -45,19 +46,21 @@ import java.util.stream.Collectors;
 public class JdbcExporter implements Exporter {
 
   private static final String INSERT_WORKFLOW =
-      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES (%s, %d, %s, %d, %s)";
+      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES ('%s', %d, '%s', %d, '%s');";
+
   private static final String INSERT_WORKFLOW_INSTANCE =
       "INSERT INTO WORKFLOW_INSTANCE"
           + " (id, partitionId, key_, intent, workflowInstanceKey, activityId, scopeInstanceKey, payload, workflowKey)"
           + " VALUES "
-          + "(%s, %d, %d, %s, %d, %s, %d, %s, %d)";
+          + "('%s', %d, %d, '%s', %d, '%s', %d, '%s', %d);";
 
   private static final String INSERT_INCIDENT =
       "INSERT INTO INCIDENT"
-          + " (id, key_, workflowInstanceKey, activityInstanceKey, jobKey, errorType, errorMsg)"
+          + " (id, key_, workflowInstanceKey, activityInstanceKey, jobKey, errorType, errorMsg);"
           + " VALUES "
-          + "(%s, %d, %d, %d, %d, %s, %s)";
+          + "('%s', %d, %d, %d, %d, '%s', '%s')";
   public static final int BATCH_SIZE = 100;
+  public static final int COMMIT_TIMER = 15;
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
   private final List<String> insertStatements;
@@ -101,7 +104,7 @@ public class JdbcExporter implements Exporter {
     createTables();
     log.info("Exporter opened");
 
-    controller.scheduleTask(Duration.ofSeconds(15), this::tryToExecuteInsertBatch);
+    controller.scheduleTask(Duration.ofSeconds(COMMIT_TIMER), this::tryToExecuteInsertBatch);
   }
 
   private void createTables() {
@@ -133,6 +136,11 @@ public class JdbcExporter implements Exporter {
 
   @Override
   public void export(final Record record) {
+    if (record.getMetadata().getRecordType() != RecordType.EVENT)
+    {
+      return;
+    }
+
     final Consumer<Record> recordConsumer =
         insertCreatorPerType.get(record.getMetadata().getValueType());
     if (recordConsumer != null) {
@@ -199,8 +207,8 @@ public class JdbcExporter implements Exporter {
         String.format(
             INSERT_WORKFLOW_INSTANCE,
             createId(),
-            key,
             partitionId,
+            key,
             intent,
             workflowInstanceKey,
             activityId,
@@ -233,7 +241,9 @@ public class JdbcExporter implements Exporter {
     insertStatements.add(insertStatement);
   }
 
+  int id = 0;
+
   private String createId() {
-    return UUID.randomUUID().toString();
+    return "" + id++;
   }
 }

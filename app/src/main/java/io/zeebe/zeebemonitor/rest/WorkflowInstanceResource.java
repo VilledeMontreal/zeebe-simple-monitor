@@ -15,9 +15,18 @@
  */
 package io.zeebe.zeebemonitor.rest;
 
+import io.zeebe.zeebemonitor.entity.IncidentEntity;
+import io.zeebe.zeebemonitor.entity.WorkflowEntity;
 import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
+import io.zeebe.zeebemonitor.repository.IncidentRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
+import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,15 +42,124 @@ public class WorkflowInstanceResource {
 
   @Autowired private WorkflowInstanceRepository workflowInstanceRepository;
 
-  @RequestMapping("/")
-  public Iterable<WorkflowInstanceEntity> getWorkflowInstances() {
-    return workflowInstanceRepository.findAll();
-  }
+  @Autowired private WorkflowRepository workflowRepository;
 
-  @RequestMapping(path = "/{key}")
-  public Iterable<WorkflowInstanceEntity> getWorkflowInstance(@PathVariable("key") long key) {
-    // TODO find all events for the workflow instance
-    return workflowInstanceRepository.findAll();
+  @Autowired private IncidentRepository incidentRepository;
+
+  @RequestMapping("/")
+  public Iterable<WorkflowInstanceDto> getWorkflowInstances() {
+
+    final Map<Long, WorkflowEntity> workflows =
+        StreamSupport.stream(workflowRepository.findAll().spliterator(), false)
+            .collect(Collectors.toMap(WorkflowEntity::getKey, Function.identity()));
+
+    final Map<Long, List<IncidentEntity>> incidentsByWorkflowInstanceKey =
+        StreamSupport.stream(incidentRepository.findAll().spliterator(), false)
+            .collect(Collectors.groupingBy(IncidentEntity::getWorkflowInstanceKey));
+
+    final Map<Long, List<WorkflowInstanceEntity>> entitiesByWorkflowInstanceKey =
+        StreamSupport.stream(workflowInstanceRepository.findAll().spliterator(), false)
+            .collect(Collectors.groupingBy(WorkflowInstanceEntity::getWorkflowInstanceKey));
+
+    entitiesByWorkflowInstanceKey
+        .entrySet()
+        .stream()
+        .map(
+            entry -> {
+              final Long workflowInstanceKey = entry.getKey();
+
+              final List<WorkflowInstanceEntity> events = entry.getValue();
+              final WorkflowInstanceEntity lastEvent = events.get(events.size() - 1);
+
+              final WorkflowInstanceDto dto = new WorkflowInstanceDto();
+              dto.setWorkflowInstanceKey(workflowInstanceKey);
+
+              dto.setPartitionId(lastEvent.getPartitionId());
+
+              dto.setWorkflowKey(lastEvent.getWorkflowKey());
+              dto.setPayload(lastEvent.getPayload());
+
+              final WorkflowEntity workflow = workflows.get(lastEvent.getWorkflowKey());
+              dto.setBpmnProcessId(workflow.getBpmnProcessId());
+              dto.setWorkflowVersion(workflow.getVersion());
+
+              final boolean isEnded =
+                  events
+                      .stream()
+                      .anyMatch(
+                          e ->
+                              e.getKey() == workflowInstanceKey
+                                  && e.getIntent().equals("ELEMENT_COMPLETED"));
+              dto.setEnded(isEnded);
+
+              final List<String> completedActivities =
+                  events
+                      .stream()
+                      .filter(
+                          e ->
+                              e.getIntent().equals("ELEMENT_COMPLETED")
+                                  && e.getKey() != workflowInstanceKey)
+                      .map(WorkflowInstanceEntity::getActivityId)
+                      .collect(Collectors.toList());
+              dto.setEndedActivities(completedActivities);
+
+              final List<String> activeAcitivities =
+                  events
+                      .stream()
+                      .filter(
+                          e ->
+                              e.getIntent().equals("ELEMENT_ACTIVATED")
+                                  && e.getKey() != workflowInstanceKey)
+                      .map(WorkflowInstanceEntity::getActivityId)
+                      .filter(id -> !completedActivities.contains(id))
+                      .collect(Collectors.toList());
+              dto.setRunningActivities(activeAcitivities);
+
+              final List<String> takenSequenceFlows =
+                  events
+                      .stream()
+                      .filter(e -> e.getIntent().equals("SEQUENCE_FLOW_TAKEN"))
+                      .map(WorkflowInstanceEntity::getActivityId)
+                      .collect(Collectors.toList());
+              dto.setTakenSequenceFlows(takenSequenceFlows);
+
+              final List<IncidentEntity> incidents =
+                  incidentsByWorkflowInstanceKey.get(workflowInstanceKey);
+              if (incidents != null) {
+                incidents
+                    .stream()
+                    .collect(Collectors.groupingBy(IncidentEntity::getIncidentKey))
+                    .entrySet()
+                    .stream()
+                    .map(
+                        i -> {
+                          final Long incidentKey = i.getKey();
+
+                          final List<IncidentEntity> incidentEvents = i.getValue();
+                          final IncidentEntity lastIncidentEvent =
+                              incidentEvents.get(incidentEvents.size() - 1);
+
+                          final IncidentDto incidentDto = new IncidentDto();
+                          incidentDto.setKey(incidentKey);
+                          incidentDto.setActivityInstanceKey(
+                              lastIncidentEvent.getActivityInstanceKey());
+                          incidentDto.setJobKey(lastIncidentEvent.getJobKey());
+                          incidentDto.setErrorType(lastIncidentEvent.getErrorType());
+                          incidentDto.setErrorMessage(lastIncidentEvent.getErrorMessage());
+
+                          final boolean isResolved =
+                              lastIncidentEvent.getIntent().equals("RESOLVED")
+                                  || lastIncidentEvent.getIntent().equals("DELETED");
+                          incidentDto.setResolved(isResolved);
+
+                          return incidentDto;
+                        });
+              }
+
+              return dto;
+            });
+
+    return null;
   }
 
   @RequestMapping(path = "/{key}", method = RequestMethod.DELETE)

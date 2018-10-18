@@ -16,13 +16,19 @@
 package io.zeebe.zeebemonitor.rest;
 
 import io.zeebe.client.api.clients.WorkflowClient;
+import io.zeebe.client.api.commands.DeployWorkflowCommandStep1.DeployWorkflowCommandBuilderStep2;
 import io.zeebe.zeebemonitor.entity.WorkflowEntity;
+import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
 import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
 import io.zeebe.zeebemonitor.repository.WorkflowRepository;
 import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -56,13 +62,34 @@ public class WorkflowResource {
   }
 
   private WorkflowDto toDto(WorkflowEntity workflowEntity) {
-    final long workflowKey = workflowEntity.getWorkflowKey();
+    final long workflowKey = workflowEntity.getKey();
 
-    // TODO count the instances
-    final long countRunning = 0; // workflowInstanceRepository.countRunningInstances(workflowKey);
-    final long countEnded = 0; // workflowInstanceRepository.countEndedInstances(workflowKey);
+    final Map<Long, List<WorkflowInstanceEntity>> instanceEventyByKey =
+        StreamSupport.stream(
+                workflowInstanceRepository.findByWorkflowKey(workflowKey).spliterator(), false)
+            .collect(Collectors.groupingBy(WorkflowInstanceEntity::getWorkflowInstanceKey));
 
-    final WorkflowDto dto = WorkflowDto.from(workflowEntity, countRunning, countEnded);
+    final AtomicInteger countRunning = new AtomicInteger(0);
+    final AtomicInteger countEnded = new AtomicInteger(0);
+
+    instanceEventyByKey.forEach(
+        (workflowInstanceKey, events) -> {
+          final boolean isCompleted =
+              events
+                  .stream()
+                  .anyMatch(
+                      e ->
+                          e.getKey() == workflowInstanceKey
+                              && e.getIntent().equals("ELEMENT_COMPLETED"));
+
+          if (isCompleted) {
+            countEnded.incrementAndGet();
+          } else {
+            countRunning.incrementAndGet();
+          }
+        });
+
+    final WorkflowDto dto = WorkflowDto.from(workflowEntity, countRunning.get(), countEnded.get());
     return dto;
   }
 
@@ -86,12 +113,18 @@ public class WorkflowResource {
 
     final WorkflowClient workflowClient = connections.getClient().workflowClient();
 
-    for (FileDto file : deployment.getFiles()) {
-      workflowClient
-          .newDeployCommand()
-          .addResourceBytes(file.getContent(), file.getFilename())
-          .send()
-          .join();
+    final List<FileDto> files = deployment.getFiles();
+    final FileDto firstFile = files.get(0);
+
+    final DeployWorkflowCommandBuilderStep2 cmd =
+        workflowClient
+            .newDeployCommand()
+            .addResourceBytes(firstFile.getContent(), firstFile.getFilename());
+
+    for (FileDto file : files.subList(1, files.size())) {
+      cmd.addResourceBytes(file.getContent(), file.getFilename());
     }
+
+    cmd.send().join();
   }
 }

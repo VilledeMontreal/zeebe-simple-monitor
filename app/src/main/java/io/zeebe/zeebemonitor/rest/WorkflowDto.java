@@ -30,7 +30,7 @@ public class WorkflowDto {
   public static WorkflowDto from(WorkflowEntity entity, long countRunning, long countEnded) {
     final WorkflowDto dto = new WorkflowDto();
 
-    dto.workflowKey = entity.getWorkflowKey();
+    dto.workflowKey = entity.getKey();
     dto.bpmnProcessId = entity.getBpmnProcessId();
     dto.version = entity.getVersion();
     dto.resource = entity.getResource();

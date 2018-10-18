@@ -15,19 +15,31 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
 import org.springframework.data.annotation.Id;
 
+@Entity(name = "WORKFLOW")
 public class WorkflowEntity {
 
-  @Id private String id;
+  @Id
+  @Column(name = "ID_")
+  private String id;
 
-  private long workflowKey;
+  @Column(name = "KEY_")
+  private long key;
 
+  @Column(name = "BPMN_PROCESS_ID_")
   private String bpmnProcessId;
 
+  @Column(name = "VERSION_")
   private int version;
 
+  @Column(name = "RESOURCE_")
   private String resource;
+
+  @Column(name = "TIMESTAMP_")
+  private long timestamp;
 
   public String getId() {
     return id;
@@ -57,11 +69,19 @@ public class WorkflowEntity {
     this.version = version;
   }
 
-  public long getWorkflowKey() {
-    return workflowKey;
+  public long getKey() {
+    return key;
   }
 
-  public void setWorkflowKey(long workflowKey) {
-    this.workflowKey = workflowKey;
+  public void setKey(long key) {
+    this.key = key;
+  }
+
+  public long getTimestamp() {
+    return timestamp;
+  }
+
+  public void setTimestamp(long timestamp) {
+    this.timestamp = timestamp;
   }
 }

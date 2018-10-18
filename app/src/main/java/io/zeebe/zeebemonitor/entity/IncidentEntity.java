@@ -15,19 +15,40 @@
  */
 package io.zeebe.zeebemonitor.entity;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
 import org.springframework.data.annotation.Id;
 
+@Entity(name = "INCIDENT")
 public class IncidentEntity {
-  @Id private String id;
 
+  @Id
+  @Column(name = "ID_")
+  private String id;
+
+  @Column(name = "KEY_")
   private long key;
 
+  @Column(name = "INTENT_")
+  private String intent;
+
+  @Column(name = "WORKFLOW_INSTANCE_KEY_")
   private long workflowInstanceKey;
+
+  @Column(name = "ACTIVITY_INSTANCE_KEY_")
   private long activityInstanceKey;
+
+  @Column(name = "JOB_KEY_")
   private long jobKey;
 
+  @Column(name = "ERROR_TYPE_")
   private String errorType;
+
+  @Column(name = "ERROR_MSG_")
   private String errorMessage;
+
+  @Column(name = "TIMESTAMP_")
+  private long timestamp;
 
   public IncidentEntity() {}
 
@@ -79,5 +100,21 @@ public class IncidentEntity {
 
   public void setJobKey(long jobKey) {
     this.jobKey = jobKey;
+  }
+
+  public String getIntent() {
+    return intent;
+  }
+
+  public void setIntent(String intent) {
+    this.intent = intent;
+  }
+
+  public long getTimestamp() {
+    return timestamp;
+  }
+
+  public void setTimestamp(long timestamp) {
+    this.timestamp = timestamp;
   }
 }

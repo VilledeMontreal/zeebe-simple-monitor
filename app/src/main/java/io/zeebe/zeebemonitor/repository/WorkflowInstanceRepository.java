@@ -18,5 +18,7 @@ package io.zeebe.zeebemonitor.repository;
 import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
 import org.springframework.data.repository.CrudRepository;
 
-public interface WorkflowInstanceRepository
-    extends CrudRepository<WorkflowInstanceEntity, String> {}
+public interface WorkflowInstanceRepository extends CrudRepository<WorkflowInstanceEntity, String> {
+
+  Iterable<WorkflowInstanceEntity> findByWorkflowKey(long workflowKey);
+}

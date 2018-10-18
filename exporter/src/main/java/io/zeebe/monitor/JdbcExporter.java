@@ -46,26 +46,26 @@ import java.util.stream.Collectors;
 public class JdbcExporter implements Exporter {
 
   private static final String INSERT_WORKFLOW =
-      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES (%d, %d, '%s', %d, '%s');";
+      "INSERT INTO WORKFLOW (ID_, KEY_, BPMN_PROCESS_ID_, VERSION_, RESOURCE_, TIMESTAMP_) VALUES ('%s', %d, '%s', %d, '%s', %d);";
 
   private static final String INSERT_WORKFLOW_INSTANCE =
       "INSERT INTO WORKFLOW_INSTANCE"
-          + " (id, partitionId, key_, intent, workflowInstanceKey, activityId, scopeInstanceKey, payload, workflowKey)"
+          + " (ID_, PARTITION_ID_, KEY_, INTENT_, WORKFLOW_INSTANCE_KEY_, ACTIVITY_ID_, SCOPE_INSTANCE_KEY_, PAYLOAD_, WORKFLOW_KEY_, TIMESTAMP_)"
           + " VALUES "
-          + "(%d, %d, %d, '%s', %d, '%s', %d, '%s', %d);";
+          + "('%s', %d, %d, '%s', %d, '%s', %d, '%s', %d, %d);";
 
   private static final String INSERT_INCIDENT =
       "INSERT INTO INCIDENT"
-          + " (id, key_, workflowInstanceKey, activityInstanceKey, jobKey, errorType, errorMsg);"
+          + " (ID_, KEY_, WORKFLOW_INSTANCE_KEY_, ACTIVITY_INSTANCE_KEY_, JOB_KEY_, ERROR_TYPE_, ERROR_MSG_, TIMESTAMP_);"
           + " VALUES "
-          + "(%d, %d, %d, %d, %d, '%s', '%s')";
+          + "('%s', %d, %d, %d, %d, '%s', '%s', %d)";
+
   public static final int BATCH_SIZE = 100;
-  public static final int COMMIT_TIMER = 15;
+  public static final Duration COMMIT_TIMER = Duration.ofSeconds(15);
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
   private final List<String> insertStatements;
 
-  private long id = 0;
   private Logger log;
   private JdbcExporterConfiguration configuration;
   private Connection connection;
@@ -103,9 +103,9 @@ public class JdbcExporter implements Exporter {
     }
 
     createTables();
-    log.info("Exporter opened");
+    log.info("Start exporting to {}.", configuration.jdbcUrl);
 
-    controller.scheduleTask(Duration.ofSeconds(COMMIT_TIMER), this::tryToExecuteInsertBatch);
+    controller.scheduleTask(COMMIT_TIMER, this::tryToExecuteInsertBatch);
   }
 
   private void createTables() {
@@ -166,6 +166,7 @@ public class JdbcExporter implements Exporter {
 
   private void createWorkflowTableInserts(final Record record) {
     final long key = record.getKey();
+    final long timestamp = record.getTimestamp().toEpochMilli();
     final DeploymentRecordValue deploymentRecordValue = (DeploymentRecordValue) record.getValue();
 
     final List<DeploymentResource> resources = deploymentRecordValue.getResources();
@@ -184,7 +185,8 @@ public class JdbcExporter implements Exporter {
                 key,
                 deployedWorkflow.getBpmnProcessId(),
                 deployedWorkflow.getVersion(),
-                new String(resource.getResource()));
+                new String(resource.getResource()),
+                timestamp);
         insertStatements.add(insertStatement);
       }
     }
@@ -194,6 +196,7 @@ public class JdbcExporter implements Exporter {
     final long key = record.getKey();
     final int partitionId = record.getMetadata().getPartitionId();
     final String intent = record.getMetadata().getIntent().name();
+    final long timestamp = record.getTimestamp().toEpochMilli();
 
     final WorkflowInstanceRecordValue workflowInstanceRecordValue =
         (WorkflowInstanceRecordValue) record.getValue();
@@ -214,12 +217,14 @@ public class JdbcExporter implements Exporter {
             activityId,
             scopeInstanceKey,
             payload,
-            workflowKey);
+            workflowKey,
+            timestamp);
     insertStatements.add(insertStatement);
   }
 
   private void createIncidentTableInsert(final Record record) {
     final long key = record.getKey();
+    final long timestamp = record.getTimestamp().toEpochMilli();
 
     final IncidentRecordValue incidentRecordValue = (IncidentRecordValue) record.getValue();
     final long workflowInstanceKey = incidentRecordValue.getWorkflowInstanceKey();
@@ -237,11 +242,12 @@ public class JdbcExporter implements Exporter {
             activityInstanceKey,
             jobKey,
             errorType,
-            errorMessage);
+            errorMessage,
+            timestamp);
     insertStatements.add(insertStatement);
   }
 
-  private long createId() {
-    return id++;
+  private String createId() {
+    return UUID.randomUUID().toString();
   }
 }

@@ -26,6 +26,7 @@ import io.zeebe.exporter.record.value.deployment.DeploymentResource;
 import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
+import io.zeebe.protocol.intent.DeploymentIntent;
 import org.slf4j.Logger;
 
 import java.net.URI;
@@ -62,6 +63,7 @@ public class JdbcExporter implements Exporter {
 
   public static final int BATCH_SIZE = 100;
   public static final Duration COMMIT_TIMER = Duration.ofSeconds(15);
+  public static final String CREATE_SCHEMA_SQL_PATH = "/CREATE_SCHEMA.sql";
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
   private final List<String> insertStatements;
@@ -111,7 +113,7 @@ public class JdbcExporter implements Exporter {
   private void createTables() {
     try (final Statement statement = connection.createStatement()) {
 
-      final URL resource = JdbcExporter.class.getResource("/CREATE_SCHEMA.sql");
+      final URL resource = JdbcExporter.class.getResource(CREATE_SCHEMA_SQL_PATH);
       final URI uri = resource.toURI();
       FileSystems.newFileSystem(uri, Collections.EMPTY_MAP);
       final Path path = Paths.get(uri);
@@ -165,6 +167,10 @@ public class JdbcExporter implements Exporter {
   }
 
   private void createWorkflowTableInserts(final Record record) {
+    if (DeploymentIntent.CREATED != record.getMetadata().getIntent()) {
+      return;
+    }
+
     final long key = record.getKey();
     final long timestamp = record.getTimestamp().toEpochMilli();
     final DeploymentRecordValue deploymentRecordValue = (DeploymentRecordValue) record.getValue();

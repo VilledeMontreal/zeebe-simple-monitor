@@ -20,6 +20,7 @@ import java.util.concurrent.*;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import io.zeebe.gateway.api.record.ValueType;
 import io.zeebe.zeebemonitor.repository.ConfigurationRepository;
 import io.zeebe.zeebemonitor.zeebe.*;
 import org.slf4j.Logger;
@@ -52,7 +53,8 @@ public class ZeebeSimpleMonitorApp
 
     public static void main(String... args)
     {
-        SpringApplication.run(ZeebeSimpleMonitorApp.class, args);
+      ZeebeWorkarounds.addEnum(ValueType.class, "JOB_BATCH");  
+      SpringApplication.run(ZeebeSimpleMonitorApp.class, args);
     }
 
     @PostConstruct

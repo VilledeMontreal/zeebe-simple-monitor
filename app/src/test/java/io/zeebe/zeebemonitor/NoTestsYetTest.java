@@ -21,7 +21,7 @@ public class NoTestsYetTest {
 
   @Test
   public void sorryNothingToTestYet() throws Exception {
-    org.h2.tools.Server.createWebServer("-web").start();
+    System.out.println("test");
     // just to make jenkins happy :-)
   }
 }

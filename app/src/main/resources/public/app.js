@@ -1,39 +1,18 @@
 var viewer = null;
 var container = null;
 
-let restAccess = "api/";
-let brokerLogs = {};
+var currentPage;
 
-let topics = [];
-
-let isConnected = false;
-var config;
-
-var selectedTopic;
 var workflowDefinitions;
 var selectedWorkflowDefinition;
 
 var workflowInstances;
 var selectedWorkflowInstance;
-var currentPage;
 
-let recordsPerPage = 20;
-var recordPage = 0;
-var recordCount = 0;
+var restAccess = "api/";
+var isConnected = false;
 
-function cleanupData() {
-			$.ajax({
-		             type : 'POST',
-		             url: restAccess + 'broker/cleanup',
-		             success: function (result) {
-		            	 window.location.replace('/');		
-		             },
-		             error: function (xhr, ajaxOptions, thrownError) {
-		               	 showErrorResonse(xhr, ajaxOptions, thrownError);
-	                },
-		             crossDomain: true,
-		    });				
-}
+// --------------------------------------------------------------------
 
 function init(page) {	
 	currentPage = page;
@@ -41,55 +20,33 @@ function init(page) {
 }
 
 function refresh() {
-	
-	if (currentPage=='broker') {
-		loadConfiguration();
-		checkConnection();
-		loadTopology();
-	} else if (currentPage=='definition') {
-		loadTopics();
+
+	if (currentPage=='definition') {
 		loadWorkflowDefinitions();		
+		
 	} else if (currentPage=="instance") {
 		loadWorkflowInstances();		
-	} else if (currentPage=="logs") {
-		loadRecords();		
-	} else if (currentPage=="setup" ) {
-		renderSetup();
+	} 
+}
+
+function showError(errorText) {
+	$("#errorText").html(errorText);
+	$("#errorPanel").show();
+}
+function ackError() {
+	$("#errorPanel").hide();
+}
+
+function showErrorResonse(xhr, ajaxOptions, thrownError) {
+	if (xhr.responseJSON) {
+		showError(xhr.responseJSON.message);
 	}
+	else {
+		showError(thrownError);
+	}	
 }
 
-function renderSetup() {
-	
-	loadConfiguration();
-	
-	if (config) {
-		window.location.replace('/');
-	}
-}
-
-// -------- config page
-
-function loadConfiguration() {
-	
-	$.ajax({
-        type : 'GET',
-        url: restAccess + 'broker/config',
-        contentType: 'application/text; charset=utf-8',
-        success: function (cfg) {
-       	 config = cfg
-       	 renderConfiguration(config)
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-        timeout: 3000,
-        crossDomain: true,
-	});	
-}
-
-function renderConfiguration(config) {	
-	$("#connection-string").html(config.connectionString)	
-}
+// --------------------------------------------------------------------
 
 function loadTopology() {
 	
@@ -118,73 +75,10 @@ function renderTopology(topology) {
 		for (p = 0; p < broker.partitions.length; p++) {
 			var partition = broker.partitions[p];
 			
-			$('#topologyTable tbody').append("<tr><td>" + broker.address + "</td><td>" + partition.topicName + "</td><td>" + partition.partitionId + "</td><td>" + partition.role + "</td></tr>");
+			$('#topologyTable tbody').append("<tr><td>" + broker.address + "</td><td>" + partition.partitionId + "</td><td>" + partition.role + "</td></tr>");
 		}
 	}
 }	
-
-function connectToBroker() {
-	$.ajax({
-             type : 'POST',
-             url: restAccess + 'broker/connect',
-             contentType: 'application/text; charset=utf-8',
-             success: function (cfg) {
-            	refresh();		
-             },
-             error: function (xhr, ajaxOptions, thrownError) {
-            	 showErrorResonse(xhr, ajaxOptions, thrownError);
-             },
-             timeout: 5000,
-             crossDomain: true,
-    });				
-}
-
-function createTopic() {
-	var topicName = $('#topicName').val()
-	var partitionCount = $('#partitionCount').val()
-	var replicationFactor = $('#replicationFactor').val()
-	
-	var command = '{"topicName":"' + topicName + '", "partitionCount":' + partitionCount + ', "replicationFactor":' + replicationFactor + '}';
-	
-	$.ajax({
-        type : 'POST',
-        url: restAccess + 'topics/',
-        data: command,
-        contentType: 'application/json; charset=utf-8',
-        success: function (result) {
-        	setTimeout(function() {
-				refresh();
-			}, 1000);
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-        timeout: 20000,
-        crossDomain: true,
-});
-}
-
-function setup() {
-	setupTo( $('#brokerConnection').val() );
-}
-
-function setupTo(connectionString) {
-	$.ajax({
-             type : 'POST',
-             url: restAccess + 'broker/setup',
-             data: connectionString,
-             contentType: 'application/text; charset=utf-8',
-             success: function (cfg) {
-            	 config = cfg
-            	 window.location.replace('/')	
-             },
-             error: function (xhr, ajaxOptions, thrownError) {
-            	 showErrorResonse(xhr, ajaxOptions, thrownError);
-             },
-             timeout: 20000,
-             crossDomain: true,
-    });				
-}
 
 function checkConnection() {
 	$.ajax({
@@ -192,86 +86,17 @@ function checkConnection() {
 	     url: restAccess + 'broker/check-connection',
 	     contentType: 'application/text; charset=utf-8',
 	     success: function (result) {
-	    	 isConnected = result;
-	    	 renderConnectionState(result);		    	 
+	    	 isConnected = result;    	 
 	     },
 	     error: function (xhr, textStatus, thrownError) {
-	    	 isConnected = false;	 
-	    	 renderConnectionState(false);   	 
+	    	 isConnected = false;	 	 
 	     },
 	     timeout: 3000,
 	     crossDomain: true,
 	});				
 }	
 
-function connect() {
-	$.ajax({
-             type : 'POST',
-             url: restAccess + 'broker/connect',
-             contentType: 'application/json; charset=utf-8',
-             success: function (cfg) {
-            	 setTimeout(function() {
-     				refresh();
-     			}, 1000);	
-             },
-             error: function (xhr, ajaxOptions, thrownError) {
-            	 showErrorResonse(xhr, ajaxOptions, thrownError);
-             },
-             timeout: 5000,
-             crossDomain: true,
-    });				
-}
-
-function renderConnectionState(connected) {
-	if (connected) {
-	$('#connection-state').html('<span class="label label-success">connected</span>');
-	}
-	else {
-	$('#connection-state').html('<span class="label label-warning">disconnected</span>' + '<button onclick="connect()" type="button" class="btn btn-success pull-right">Connect</button>');
-	
-	}
-}
-
-
 //-------- workflow page
-
-function loadTopics() {
-	$.ajax({
-        type : 'GET',
-        url: restAccess + 'topics/',
-        contentType: 'application/json; charset=utf-8',
-        success: function (result) {
-        	topics = result;
-        	renderTopicSelection();
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-        timeout: 3000,
-        crossDomain: true,
-	});	
-}
-
-function renderTopicSelection() {
-	
-	$("#selectedTopicDropdown").empty();
-	
-	$("#selectedTopicDropdown").click(function(){ 
-		selectedTopic = $("#selectedTopicDropdown").val();
-	});
-	
-	for (index = 0; index < topics.length; index++) {
-		var topic = topics[index];
-		
-		$('#selectedTopicDropdown').append('<option value="' + topic + '">' + topic + '</option>');
-	}
-	
-	if (selectedTopic) {
-		$("#selectedTopicDropdown").val(selectedTopic);
-	} else {
-		$("#selectedTopicDropdown").val($("#selectedTopicDropdown option:first").val());
-	}
-}	
 
 function loadWorkflowDefinitions() {
 	$.get(restAccess + 'workflows/', function(result) {
@@ -296,7 +121,6 @@ function renderWorkflowDefinitionTable() {
 				"<td "+selectedClass+"><a onclick='selectWorkflowDefinition("+index+")'>"+def.workflowKey+"</a></td>" + 
 				"<td "+selectedClass+"><a onclick='selectWorkflowDefinition("+index+")'>"+def.bpmnProcessId+"</a></td>"+
 				"<td "+selectedClass+">"+def.version+"</td>"+
-				"<td "+selectedClass+">"+def.topic+"</td>"+
 				"<td "+selectedClass+">"+def.countRunning+"</td>"+
 				"<td "+selectedClass+">"+def.countEnded+"</td>"+
 				"</tr>");
@@ -306,7 +130,7 @@ function renderWorkflowDefinitionTable() {
 function selectWorkflowDefinition(index) {
 	selectedWorkflowDefinition = workflowDefinitions[index];
 	
-	renderWorkflowDefinitionTable(); // set selected could be done with less overhead - but this is quick for now
+	renderWorkflowDefinitionTable(); 
 	renderSelectedWorkflowDefinition();
 }
 
@@ -315,8 +139,7 @@ function renderSelectedWorkflowDefinition() {
 		$('#workflowKey').html(selectedWorkflowDefinition.workflowKey);
 		$('#bpmnProcessId').html(selectedWorkflowDefinition.bpmnProcessId);
 		$('#workflowVersion').text(selectedWorkflowDefinition.version);
-		$('#topic').text(selectedWorkflowDefinition.topic);
-
+		
 		$('#countRunning').text(selectedWorkflowDefinition.countRunning);
 		$('#countEnded').text(selectedWorkflowDefinition.countEnded);
 
@@ -400,7 +223,6 @@ function renderWorkflowInstanceTable() {
 				"<td "+selectedClass+">"+def.bpmnProcessId+"</td>"+
 				"<td "+selectedClass+">"+def.workflowVersion+"</td>"+
 				"<td "+selectedClass+">"+def.workflowKey+"</td>"+
-				"<td "+selectedClass+">"+def.topicName+"</td>"+
 				"<td "+selectedClass+">"+(def.ended ? "Ended" : "Running")+"</td>"+
 				"</tr>");
 	}
@@ -409,7 +231,7 @@ function renderWorkflowInstanceTable() {
 function selectWorkflowInstance(index) {
 	selectedWorkflowInstance = workflowInstances[index];
 	
-	renderWorkflowInstanceTable(); // set selected could be done with less overhead - but this is quick for now
+	renderWorkflowInstanceTable(); 
 	renderSelectedWorkflowInstance();
 }
 
@@ -468,117 +290,6 @@ function renderIncidentsTable() {
 		$('#incidentsTable tbody').append("<tr><td>"+incident.errorType+"</td><td>"+incident.errorMessage+"</td></tr>");
 	}
 }
-
-//-------- log page
-
-function loadRecords() {
-	
-	countRecords();
-	
-	recordPage = 0;		
-}
-
-function loadRecordPage() {
-	start = recordPage * recordsPerPage;
-
-	if (recordPage == 0) {
-		$('#recordPrevious').addClass("disabled")
-	} else {
-		$('#recordPrevious').removeClass("disabled")
-	}
-
-	if ((start + recordsPerPage) >= recordCount) {
-		$('#recordNext').addClass("disabled")
-	} else {
-		$('#recordNext').removeClass("disabled")
-	}		
-	
-	$.ajax({
-        type : 'POST',
-        url: restAccess + 'records/search?start=' + start + '&limit=' + recordsPerPage,
-        data:  $('#recordQuery').val(),
-        contentType: 'application/json; charset=utf-8',
-        success: function (logs) {
-        	brokerLogs = logs;
-    		renderRecordsTable();
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-   	 timeout: 5000,
-        crossDomain: true,
-	});
-}
-
-function loadNextRecords() {		
-	if ((start + recordsPerPage) < recordCount) {
-		recordPage = recordPage + 1;	
-		loadRecordPage();
-	}
-}
-
-function loadPreviousRecords() {		
-	if (recordPage > 0) {	
-		recordPage = recordPage - 1;	
-		loadRecordPage();
-	}
-}
-
-function countRecords() {
-	$.ajax({
-        type : 'POST',
-        url: restAccess + 'records/count',
-        data:  $('#recordQuery').val(),
-        contentType: 'application/json; charset=utf-8',
-        success: function (count) {
-          recordCount = count;
-        	$('#recordCount').html(count)
-        	
-        	loadRecordPage();
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-       	 showErrorResonse(xhr, ajaxOptions, thrownError);
-        },
-   	 timeout: 5000,
-        crossDomain: true,
-	});
-}
-
-
-function renderRecordsTable() {
-	$("#brokerLogsTable > tbody").html("");
-
-			for (index = brokerLogs.length-1; index >= 0; --index) {
-
-				var log = brokerLogs[index];
-				var json = log.content
-				var prettyJson = JSON.stringify(json, null, 4)
-                				
-				$('#brokerLogsTable tbody').append(
-					"<tr><td><p style='white-space:pre'>"+prettyJson+"</p></td>"
-					+"</td></tr>");
-			}
-}
-
-
-
-function showError(errorText) {
-	$("#errorText").html(errorText);
-	$("#errorPanel").show();
-}
-function ackError() {
-	$("#errorPanel").hide();
-}
-
-function showErrorResonse(xhr, ajaxOptions, thrownError) {
-	if (xhr.responseJSON) {
-		showError(xhr.responseJSON.message);
-	}
-	else {
-		showError(thrownError);
-	}	
-}
-
 
 function uploadModels() {
   	
@@ -703,7 +414,7 @@ function updatePayload() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.id + "/update-payload",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-payload",
 	             data:  $('#payload').val(),
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -724,7 +435,7 @@ function updateRetries() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.id + "/update-retries",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-retries",
 	             data:  '{"retries": "2"}', // TODO
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -745,7 +456,7 @@ function cancelWorkflowInstance() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'DELETE',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.id,
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key,
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
 	             	setTimeout(function() {

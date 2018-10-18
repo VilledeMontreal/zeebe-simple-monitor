@@ -17,7 +17,7 @@ package io.zeebe.zeebemonitor.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import org.springframework.data.annotation.Id;
+import javax.persistence.Id;
 
 @Entity(name = "WORKFLOW_INSTANCE")
 public class WorkflowInstanceEntity {

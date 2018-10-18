@@ -17,7 +17,7 @@ package io.zeebe.zeebemonitor.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import org.springframework.data.annotation.Id;
+import javax.persistence.Id;
 
 @Entity(name = "INCIDENT")
 public class IncidentEntity {
@@ -49,8 +49,6 @@ public class IncidentEntity {
 
   @Column(name = "TIMESTAMP_")
   private long timestamp;
-
-  public IncidentEntity() {}
 
   public String getErrorType() {
     return errorType;

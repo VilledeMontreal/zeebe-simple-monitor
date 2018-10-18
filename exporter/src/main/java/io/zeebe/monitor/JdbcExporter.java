@@ -61,7 +61,6 @@ public class JdbcExporter implements Exporter {
           + " VALUES "
           + "('%s', %d, '%s', %d, %d, %d, '%s', '%s', %d)";
 
-  public static final int BATCH_SIZE = 100;
   public static final Duration COMMIT_TIMER = Duration.ofSeconds(15);
   public static final String CREATE_SCHEMA_SQL_PATH = "/CREATE_SCHEMA.sql";
 
@@ -71,6 +70,7 @@ public class JdbcExporter implements Exporter {
   private Logger log;
   private JdbcExporterConfiguration configuration;
   private Connection connection;
+  private int batchSize;
 
   public JdbcExporter() {
     insertCreatorPerType.put(ValueType.DEPLOYMENT, this::createWorkflowTableInserts);
@@ -84,6 +84,7 @@ public class JdbcExporter implements Exporter {
   public void configure(final Context context) {
     log = context.getLogger();
     configuration = context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
+    batchSize = configuration.batchSize;
 
     log.debug("Exporter configured with {}", configuration);
     try {
@@ -115,7 +116,9 @@ public class JdbcExporter implements Exporter {
 
       final URL resource = JdbcExporter.class.getResource(CREATE_SCHEMA_SQL_PATH);
       final URI uri = resource.toURI();
-      FileSystems.newFileSystem(uri, Collections.EMPTY_MAP);
+      if (resource.getFile().contains("!")) {
+        FileSystems.newFileSystem(uri, Collections.EMPTY_MAP);
+      }
       final Path path = Paths.get(uri);
       final byte[] bytes = Files.readAllBytes(path);
       final String sql = new String(bytes);
@@ -148,7 +151,7 @@ public class JdbcExporter implements Exporter {
     if (recordConsumer != null) {
       recordConsumer.accept(record);
 
-      if (insertStatements.size() > BATCH_SIZE) {
+      if (insertStatements.size() > batchSize) {
         tryToExecuteInsertBatch();
       }
     }

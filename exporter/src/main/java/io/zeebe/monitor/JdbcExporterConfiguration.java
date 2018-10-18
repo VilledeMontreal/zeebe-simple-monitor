@@ -7,4 +7,6 @@ public class JdbcExporterConfiguration {
 
   String userName = "sa";
   String password = "";
+
+  int batchSize = 100;
 }

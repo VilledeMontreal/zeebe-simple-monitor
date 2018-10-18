@@ -56,9 +56,9 @@ public class JdbcExporter implements Exporter {
 
   private static final String INSERT_INCIDENT =
       "INSERT INTO INCIDENT"
-          + " (ID_, KEY_, WORKFLOW_INSTANCE_KEY_, ACTIVITY_INSTANCE_KEY_, JOB_KEY_, ERROR_TYPE_, ERROR_MSG_, TIMESTAMP_);"
+          + " (ID_, KEY_, INTENT_, WORKFLOW_INSTANCE_KEY_, ACTIVITY_INSTANCE_KEY_, JOB_KEY_, ERROR_TYPE_, ERROR_MSG_, TIMESTAMP_)"
           + " VALUES "
-          + "('%s', %d, %d, %d, %d, '%s', '%s', %d)";
+          + "('%s', %d, '%s', %d, %d, %d, '%s', '%s', %d)";
 
   public static final int BATCH_SIZE = 100;
   public static final Duration COMMIT_TIMER = Duration.ofSeconds(15);
@@ -224,6 +224,7 @@ public class JdbcExporter implements Exporter {
 
   private void createIncidentTableInsert(final Record record) {
     final long key = record.getKey();
+    final String intent = record.getMetadata().getIntent().name();
     final long timestamp = record.getTimestamp().toEpochMilli();
 
     final IncidentRecordValue incidentRecordValue = (IncidentRecordValue) record.getValue();
@@ -238,6 +239,7 @@ public class JdbcExporter implements Exporter {
             INSERT_INCIDENT,
             createId(),
             key,
+            intent,
             workflowInstanceKey,
             activityInstanceKey,
             jobKey,

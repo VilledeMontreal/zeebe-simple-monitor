@@ -17,13 +17,11 @@ package io.zeebe.zeebemonitor;
 
 import org.junit.Test;
 
-public class NoTestsYetTest
-{
+public class NoTestsYetTest {
 
-    @Test
-    public void sorryNothingToTestYet()
-    {
-        // just to make jenkins happy :-)
-    }
-
+  @Test
+  public void sorryNothingToTestYet() throws Exception {
+    org.h2.tools.Server.createWebServer("-web").start();
+    // just to make jenkins happy :-)
+  }
 }

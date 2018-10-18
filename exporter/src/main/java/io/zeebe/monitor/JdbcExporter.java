@@ -46,25 +46,26 @@ import java.util.stream.Collectors;
 public class JdbcExporter implements Exporter {
 
   private static final String INSERT_WORKFLOW =
-      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES ('%s', %d, '%s', %d, '%s');";
+      "INSERT INTO WORKFLOW (id, key_, bpmnProcessId, version, resource) VALUES (%d, %d, '%s', %d, '%s');";
 
   private static final String INSERT_WORKFLOW_INSTANCE =
       "INSERT INTO WORKFLOW_INSTANCE"
           + " (id, partitionId, key_, intent, workflowInstanceKey, activityId, scopeInstanceKey, payload, workflowKey)"
           + " VALUES "
-          + "('%s', %d, %d, '%s', %d, '%s', %d, '%s', %d);";
+          + "(%d, %d, %d, '%s', %d, '%s', %d, '%s', %d);";
 
   private static final String INSERT_INCIDENT =
       "INSERT INTO INCIDENT"
           + " (id, key_, workflowInstanceKey, activityInstanceKey, jobKey, errorType, errorMsg);"
           + " VALUES "
-          + "('%s', %d, %d, %d, %d, '%s', '%s')";
+          + "(%d, %d, %d, %d, %d, '%s', '%s')";
   public static final int BATCH_SIZE = 100;
   public static final int COMMIT_TIMER = 15;
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
   private final List<String> insertStatements;
 
+  private long id = 0;
   private Logger log;
   private JdbcExporterConfiguration configuration;
   private Connection connection;
@@ -136,8 +137,7 @@ public class JdbcExporter implements Exporter {
 
   @Override
   public void export(final Record record) {
-    if (record.getMetadata().getRecordType() != RecordType.EVENT)
-    {
+    if (record.getMetadata().getRecordType() != RecordType.EVENT) {
       return;
     }
 
@@ -184,7 +184,7 @@ public class JdbcExporter implements Exporter {
                 key,
                 deployedWorkflow.getBpmnProcessId(),
                 deployedWorkflow.getVersion(),
-                resource);
+                new String(resource.getResource()));
         insertStatements.add(insertStatement);
       }
     }
@@ -241,9 +241,7 @@ public class JdbcExporter implements Exporter {
     insertStatements.add(insertStatement);
   }
 
-  int id = 0;
-
-  private String createId() {
-    return "" + id++;
+  private long createId() {
+    return id++;
   }
 }

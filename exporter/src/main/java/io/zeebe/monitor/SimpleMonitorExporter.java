@@ -218,9 +218,9 @@ public class SimpleMonitorExporter implements Exporter {
                 INSERT_WORKFLOW,
                 createId(),
                 deployedWorkflow.getWorkflowKey(),
-                deployedWorkflow.getBpmnProcessId(),
+                getCleanString(deployedWorkflow.getBpmnProcessId()),
                 deployedWorkflow.getVersion(),
-                new String(resource.getResource()),
+                getCleanString(new String(resource.getResource())),
                 timestamp);
         sqlStatements.add(insertStatement);
       }
@@ -260,7 +260,7 @@ public class SimpleMonitorExporter implements Exporter {
             || intent == WorkflowInstanceIntent.CREATED;
 
     if (wasWorkflowInstanceStarted) {
-      final String bpmnProcessId = workflowInstanceRecordValue.getBpmnProcessId();
+      final String bpmnProcessId = getCleanString(workflowInstanceRecordValue.getBpmnProcessId());
       final int version = workflowInstanceRecordValue.getVersion();
       final long workflowKey = workflowInstanceRecordValue.getWorkflowKey();
 
@@ -289,9 +289,9 @@ public class SimpleMonitorExporter implements Exporter {
       final long timestamp,
       final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
     final long workflowInstanceKey = workflowInstanceRecordValue.getWorkflowInstanceKey();
-    final String activityId = workflowInstanceRecordValue.getActivityId();
+    final String activityId = getCleanString(workflowInstanceRecordValue.getActivityId());
     final long scopeInstanceKey = workflowInstanceRecordValue.getScopeInstanceKey();
-    final String payload = workflowInstanceRecordValue.getPayload();
+    final String payload = getCleanString(workflowInstanceRecordValue.getPayload());
     final long workflowKey = workflowInstanceRecordValue.getWorkflowKey();
 
     final String insertActivityInstanceStatement =
@@ -319,8 +319,8 @@ public class SimpleMonitorExporter implements Exporter {
     final long workflowInstanceKey = incidentRecordValue.getWorkflowInstanceKey();
     final long activityInstanceKey = incidentRecordValue.getActivityInstanceKey();
     final long jobKey = incidentRecordValue.getJobKey();
-    final String errorType = incidentRecordValue.getErrorType();
-    final String errorMessage = incidentRecordValue.getErrorMessage();
+    final String errorType = getCleanString(incidentRecordValue.getErrorType());
+    final String errorMessage = getCleanString(incidentRecordValue.getErrorMessage());
 
     final String insertStatement =
         String.format(
@@ -335,6 +335,10 @@ public class SimpleMonitorExporter implements Exporter {
             errorMessage,
             timestamp);
     sqlStatements.add(insertStatement);
+  }
+
+  private String getCleanString(final String string) {
+    return string.trim().replaceAll("'", "`");
   }
 
   private String createId() {

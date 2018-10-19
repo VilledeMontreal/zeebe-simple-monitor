@@ -326,7 +326,7 @@ public class SimpleMonitorExporterTest {
 
     final DeployedWorkflow deployedWorkflowMock = mock(DeployedWorkflow.class);
     when(deployedWorkflowMock.getResourceName()).thenReturn("process.bpmn");
-    when(deployedWorkflowMock.getBpmnProcessId()).thenReturn("process");
+    when(deployedWorkflowMock.getBpmnProcessId()).thenReturn("procsess");
     when(deployedWorkflowMock.getVersion()).thenReturn(0);
     when(deployedWorkflowMock.getWorkflowKey()).thenReturn(1L);
 

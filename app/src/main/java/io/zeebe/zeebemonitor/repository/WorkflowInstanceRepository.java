@@ -21,4 +21,6 @@ import org.springframework.data.repository.CrudRepository;
 public interface WorkflowInstanceRepository extends CrudRepository<WorkflowInstanceEntity, String> {
 
   Iterable<WorkflowInstanceEntity> findByWorkflowKey(long workflowKey);
+
+  Iterable<WorkflowInstanceEntity> findByWorkflowInstanceKey(long workflowInstanceKey);
 }

@@ -58,7 +58,7 @@ public class WorkflowResource {
 
   @RequestMapping(path = "/{workflowKey}")
   public WorkflowDto findWorkflow(@PathVariable("workflowKey") long workflowKey) {
-    return workflowRepository.findById(workflowKey).map(this::toDto).orElse(null);
+    return workflowRepository.findByKey(workflowKey).map(this::toDto).orElse(null);
   }
 
   private WorkflowDto toDto(WorkflowEntity workflowEntity) {

@@ -16,6 +16,10 @@
 package io.zeebe.zeebemonitor.repository;
 
 import io.zeebe.zeebemonitor.entity.WorkflowEntity;
+import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
-public interface WorkflowRepository extends CrudRepository<WorkflowEntity, Long> {}
+public interface WorkflowRepository extends CrudRepository<WorkflowEntity, String> {
+
+  Optional<WorkflowEntity> findByKey(long key);
+}

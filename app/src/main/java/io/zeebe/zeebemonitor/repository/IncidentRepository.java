@@ -18,4 +18,7 @@ package io.zeebe.zeebemonitor.repository;
 import io.zeebe.zeebemonitor.entity.IncidentEntity;
 import org.springframework.data.repository.CrudRepository;
 
-public interface IncidentRepository extends CrudRepository<IncidentEntity, Long> {}
+public interface IncidentRepository extends CrudRepository<IncidentEntity, String> {
+
+  Iterable<IncidentEntity> findByWorkflowInstanceKey(long workflowInstanceKey);
+}

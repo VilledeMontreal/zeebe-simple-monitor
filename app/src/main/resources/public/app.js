@@ -193,7 +193,7 @@ function loadWorkflowInstances() {
 	    	
 	      var index = -1
 	      if (selectedWorkflowInstance) {
-	    	index = workflowInstances.findIndex(function(wf) { return wf.id == selectedWorkflowInstance.id});  
+	    	index = workflowInstances.findIndex(function(wf) { return wf.workflowInstanceKey == selectedWorkflowInstance.workflowInstanceKey});  
 	      }	      
 	      if (index < 0) {
 	        index = workflowInstances.length - 1
@@ -214,7 +214,7 @@ function renderWorkflowInstanceTable() {
 	for (index = workflowInstances.length-1; index >= 0; --index) {
 		var def = workflowInstances[index];
 		var selectedClass = '';
-		if (selectedWorkflowInstance && def.id==selectedWorkflowInstance.id) {
+		if (selectedWorkflowInstance && def.workflowInstanceKey==selectedWorkflowInstance.workflowInstanceKey) {
 			selectedClass ='class="tngp-table-selected"';
 		}
 		
@@ -414,7 +414,7 @@ function updatePayload() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-payload",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey + "/update-payload",
 	             data:  $('#payload').val(),
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -435,7 +435,7 @@ function updateRetries() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-retries",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey + "/update-retries",
 	             data:  '{"retries": "2"}', // TODO
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -456,7 +456,7 @@ function cancelWorkflowInstance() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'DELETE',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.key,
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey,
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
 	             	setTimeout(function() {

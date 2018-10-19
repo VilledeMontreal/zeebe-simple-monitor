@@ -1,4 +1,4 @@
-JdbcExporter
+SimpleMonitorExporter
 =========================
 
 The current implementation is created to be used with the simple-monitor, but
@@ -25,14 +25,14 @@ cp target/zeebe-simple-monitor-exporter-0.7.0-SNAPSHOT-jar-with-dependencies.jar
 
 ### Configure the Broker
 
-After that you need to configure the Zeebe broker, so the broker starts the JdbcExporter. To that open the Zeebe configuration file `config/zeebe.cfg.toml`.
+After that you need to configure the Zeebe broker, so the broker starts the SimpleMonitorExporter. To that open the Zeebe configuration file `config/zeebe.cfg.toml`.
 
 To enable the exporter add the following to the end of the file:
 
 ```
 [[exporters]]
 id = "simple-monitor"
-className = "io.zeebe.monitor.JdbcExporter"
+className = "io.zeebe.monitor.SimpleMonitorExporter"
 ```
 
 ### Configure the Exporter
@@ -43,7 +43,7 @@ To do this you can add the following. All values are commeted out and have the d
 ```
 [[exporters]]
 id = "simple-monitor"
-className = "io.zeebe.monitor.JdbcExporter"
+className = "io.zeebe.monitor.SimpleMonitorExporter"
 
  [exporters.args]
   #jdbcUrl = "jdbc:h2:~/zeebe-monitor;AUTO_SERVER=TRUE"
@@ -62,12 +62,12 @@ className = "io.zeebe.monitor.JdbcExporter"
   #
   # batchSize = 100;
 
-  # To configure the time in seconds, when the batch should be executed regardless whether the
+  # To configure the time in milliseconds, when the batch should be executed regardless whether the
   # batch size was reached or not.
   #
   #If the value is less then one, then no timer will be scheduled.
   #
-  #batchTimerSec = 15
+  #batchTimerMilli = 1000
 ```
 
 ### Start the broker

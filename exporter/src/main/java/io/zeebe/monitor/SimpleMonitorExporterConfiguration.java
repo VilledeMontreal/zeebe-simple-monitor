@@ -1,6 +1,6 @@
 package io.zeebe.monitor;
 
-public class JdbcExporterConfiguration {
+public class SimpleMonitorExporterConfiguration {
 
   String jdbcUrl = "jdbc:h2:~/zeebe-monitor;AUTO_SERVER=TRUE";
 
@@ -24,10 +24,10 @@ public class JdbcExporterConfiguration {
   int batchSize = 100;
 
   /**
-   * To configure the time in seconds, when the batch should be executed regardless whether the
+   * To configure the time in milliseconds, when the batch should be executed regardless whether the
    * batch size was reached or not.
    *
    * <p>If the value is less then one, then no timer will be scheduled.
    */
-  int batchTimerSec = 15;
+  int batchTimerMilli = 1000;
 }

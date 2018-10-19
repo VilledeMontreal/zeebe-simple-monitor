@@ -33,25 +33,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class JdbcExporterTest {
+public class SimpleMonitorExporterTest {
 
   public static final String SELECT_FROM_WORKFLOW = "SELECT * FROM WORKFLOW;";
   public static final String SELECT_FROM_WORKFLOW_INSTANCE = "SELECT * FROM WORKFLOW_INSTANCE;";
   public static final String SELECT_FROM_ACTIVITY_INSTANCE = "SELECT * FROM ACTIVITY_INSTANCE;";
 
-  private JdbcExporter exporter;
-  private JdbcExporterConfiguration configuration;
+  private SimpleMonitorExporter exporter;
+  private SimpleMonitorExporterConfiguration configuration;
 
   @Before
   public void setup() {
-    exporter = new JdbcExporter();
-    configuration = new JdbcExporterConfiguration();
+    exporter = new SimpleMonitorExporter();
+    configuration = new SimpleMonitorExporterConfiguration();
     configuration.jdbcUrl = "jdbc:h2:mem:zeebe-monitor";
     configuration.batchSize = 0;
 
     final Context contextMock = mock(Context.class);
     final Configuration configMock = mock(Configuration.class);
-    when(configMock.instantiate(JdbcExporterConfiguration.class)).thenReturn(configuration);
+    when(configMock.instantiate(SimpleMonitorExporterConfiguration.class))
+        .thenReturn(configuration);
     when(contextMock.getConfiguration()).thenReturn(configMock);
 
     final Logger logger = LoggerFactory.getLogger("simple-monitor");

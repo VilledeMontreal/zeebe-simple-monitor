@@ -46,7 +46,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-public class JdbcExporter implements Exporter {
+public class SimpleMonitorExporter implements Exporter {
 
   private static final String INSERT_WORKFLOW =
       "INSERT INTO WORKFLOW (ID_, KEY_, BPMN_PROCESS_ID_, VERSION_, RESOURCE_, TIMESTAMP_) VALUES ('%s', %d, '%s', %d, '%s', %d);";
@@ -79,14 +79,14 @@ public class JdbcExporter implements Exporter {
 
   private Logger log;
   private Controller controller;
-  private JdbcExporterConfiguration configuration;
+  private SimpleMonitorExporterConfiguration configuration;
 
   private Connection connection;
   private int batchSize;
-  private int batchTimerSec;
+  private int batchTimerMilli;
   private Duration batchExecutionTimer;
 
-  public JdbcExporter() {
+  public SimpleMonitorExporter() {
     insertCreatorPerType.put(ValueType.DEPLOYMENT, this::exportDeploymentRecord);
     insertCreatorPerType.put(ValueType.WORKFLOW_INSTANCE, this::exportWorkflowInstanceRecord);
     insertCreatorPerType.put(ValueType.INCIDENT, this::exportIncidentRecord);
@@ -97,9 +97,10 @@ public class JdbcExporter implements Exporter {
   @Override
   public void configure(final Context context) {
     log = context.getLogger();
-    configuration = context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
+    configuration =
+        context.getConfiguration().instantiate(SimpleMonitorExporterConfiguration.class);
     batchSize = configuration.batchSize;
-    batchTimerSec = configuration.batchTimerSec;
+    batchTimerMilli = configuration.batchTimerMilli;
 
     log.debug("Exporter configured with {}", configuration);
     try {
@@ -124,8 +125,8 @@ public class JdbcExporter implements Exporter {
     log.info("Start exporting to {}.", configuration.jdbcUrl);
 
     this.controller = controller;
-    if (batchTimerSec > 0) {
-      batchExecutionTimer = Duration.ofSeconds(batchTimerSec);
+    if (batchTimerMilli > 0) {
+      batchExecutionTimer = Duration.ofMillis(batchTimerMilli);
       this.controller.scheduleTask(batchExecutionTimer, this::batchTimerExecution);
     }
   }
@@ -133,7 +134,7 @@ public class JdbcExporter implements Exporter {
   private void createTables() {
     try (final Statement statement = connection.createStatement()) {
 
-      final URL resource = JdbcExporter.class.getResource(CREATE_SCHEMA_SQL_PATH);
+      final URL resource = SimpleMonitorExporter.class.getResource(CREATE_SCHEMA_SQL_PATH);
       final URI uri = resource.toURI();
       if (resource.getFile().contains("!")) {
         FileSystems.newFileSystem(uri, Collections.EMPTY_MAP);
@@ -224,7 +225,7 @@ public class JdbcExporter implements Exporter {
   }
 
   private boolean isWorkflowInstance(
-    final Record record, final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
+      final Record record, final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
     return workflowInstanceRecordValue.getWorkflowInstanceKey() == record.getKey();
   }
 

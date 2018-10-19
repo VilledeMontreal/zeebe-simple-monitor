@@ -13,18 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.repository;
 
-import java.util.List;
+import io.zeebe.monitor.entity.ActivityInstanceEntity;
+import org.springframework.data.repository.CrudRepository;
 
-public class DeploymentDto {
-  private List<FileDto> files;
+public interface ActivityInstanceRepository extends CrudRepository<ActivityInstanceEntity, String> {
 
-  public List<FileDto> getFiles() {
-    return files;
-  }
-
-  public void setFiles(List<FileDto> files) {
-    this.files = files;
-  }
+  Iterable<ActivityInstanceEntity> findByWorkflowInstanceKey(long workflowInstanceKey);
 }

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.repository;
+package io.zeebe.monitor.repository;
 
-import io.zeebe.zeebemonitor.entity.ActivityInstanceEntity;
+import io.zeebe.monitor.entity.WorkflowEntity;
+import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
-public interface ActivityInstanceRepository extends CrudRepository<ActivityInstanceEntity, String> {
+public interface WorkflowRepository extends CrudRepository<WorkflowEntity, String> {
 
-  Iterable<ActivityInstanceEntity> findByWorkflowInstanceKey(long workflowInstanceKey);
+  Optional<WorkflowEntity> findByKey(long key);
 }

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor;
+package io.zeebe.monitor;
 
-import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import io.zeebe.monitor.zeebe.ZeebeConnectionService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,7 +38,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class ZeebeSimpleMonitorApp {
   private static final Logger LOG = LoggerFactory.getLogger(ZeebeSimpleMonitorApp.class);
 
-  @Value("${io.zeebe.monitor.connectionString:localhost:26500}")
+  @Value("${io.zeebe.monitor.connectionString}")
   private String connectionString;
 
   @Autowired private ZeebeConnectionService connectionService;

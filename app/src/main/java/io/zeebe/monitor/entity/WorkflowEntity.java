@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.entity;
+package io.zeebe.monitor.entity;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

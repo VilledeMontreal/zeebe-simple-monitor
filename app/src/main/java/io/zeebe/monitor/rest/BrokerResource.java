@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.rest;
 
 import io.zeebe.client.api.commands.BrokerInfo;
-import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import io.zeebe.monitor.zeebe.ZeebeConnectionService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

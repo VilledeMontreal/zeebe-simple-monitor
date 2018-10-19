@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.rest;
 
 import io.zeebe.client.api.clients.WorkflowClient;
 import io.zeebe.client.api.commands.DeployWorkflowCommandStep1.DeployWorkflowCommandBuilderStep2;
-import io.zeebe.zeebemonitor.entity.WorkflowEntity;
-import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
-import io.zeebe.zeebemonitor.repository.WorkflowRepository;
-import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import io.zeebe.monitor.entity.WorkflowEntity;
+import io.zeebe.monitor.repository.WorkflowInstanceRepository;
+import io.zeebe.monitor.repository.WorkflowRepository;
+import io.zeebe.monitor.zeebe.ZeebeConnectionService;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;

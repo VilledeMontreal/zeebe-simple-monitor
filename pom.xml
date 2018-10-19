@@ -17,10 +17,8 @@
     </parent>
 
     <modules>
-        <module>base</module>
         <module>exporter</module>
         <module>app</module>
-
     </modules>
 
     <properties>
@@ -59,12 +57,6 @@
                 <version>${spring.boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>io.zeebe</groupId>
-                <artifactId>zeebe-simple-monitor-base</artifactId>
-                <version>${project.version}</version>
             </dependency>
 
             <dependency>

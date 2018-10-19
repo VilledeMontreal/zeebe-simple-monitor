@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.zeebe;
+package io.zeebe.monitor.zeebe;
 
 import io.zeebe.client.ZeebeClient;
 import org.slf4j.Logger;

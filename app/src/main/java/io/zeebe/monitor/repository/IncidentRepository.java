@@ -13,15 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor;
+package io.zeebe.monitor.repository;
 
-import org.junit.Test;
+import io.zeebe.monitor.entity.IncidentEntity;
+import org.springframework.data.repository.CrudRepository;
 
-public class NoTestsYetTest {
+public interface IncidentRepository extends CrudRepository<IncidentEntity, String> {
 
-  @Test
-  public void sorryNothingToTestYet() throws Exception {
-    System.out.println("test");
-    // just to make jenkins happy :-)
-  }
+  Iterable<IncidentEntity> findByWorkflowInstanceKey(long workflowInstanceKey);
 }

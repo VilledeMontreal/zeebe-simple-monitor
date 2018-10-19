@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.rest;
 
-import io.zeebe.zeebemonitor.entity.ActivityInstanceEntity;
-import io.zeebe.zeebemonitor.entity.IncidentEntity;
-import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
-import io.zeebe.zeebemonitor.repository.ActivityInstanceRepository;
-import io.zeebe.zeebemonitor.repository.IncidentRepository;
-import io.zeebe.zeebemonitor.repository.WorkflowInstanceRepository;
-import io.zeebe.zeebemonitor.repository.WorkflowRepository;
-import io.zeebe.zeebemonitor.zeebe.ZeebeConnectionService;
+import io.zeebe.monitor.entity.ActivityInstanceEntity;
+import io.zeebe.monitor.entity.IncidentEntity;
+import io.zeebe.monitor.entity.WorkflowInstanceEntity;
+import io.zeebe.monitor.repository.ActivityInstanceRepository;
+import io.zeebe.monitor.repository.IncidentRepository;
+import io.zeebe.monitor.repository.WorkflowInstanceRepository;
+import io.zeebe.monitor.repository.WorkflowRepository;
+import io.zeebe.monitor.zeebe.ZeebeConnectionService;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;

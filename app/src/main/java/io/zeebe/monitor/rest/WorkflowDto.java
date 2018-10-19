@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.rest;
 
-import io.zeebe.zeebemonitor.entity.WorkflowEntity;
+import io.zeebe.monitor.entity.WorkflowEntity;
 
 public class WorkflowDto {
 

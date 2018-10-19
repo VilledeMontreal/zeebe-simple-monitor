@@ -13,19 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.zeebemonitor.repository;
+package io.zeebe.monitor;
 
-import io.zeebe.zeebemonitor.entity.WorkflowInstanceEntity;
-import java.util.Optional;
-import org.springframework.data.repository.CrudRepository;
+import org.junit.Test;
 
-public interface WorkflowInstanceRepository extends CrudRepository<WorkflowInstanceEntity, String> {
+public class NoTestsYetTest {
 
-  Iterable<WorkflowInstanceEntity> findByWorkflowKey(long workflowKey);
-
-  Optional<WorkflowInstanceEntity> findByKey(long key);
-
-  long countByWorkflowKeyAndEndIsNotNull(long workflowKey);
-
-  long countByWorkflowKeyAndEndIsNull(long workflowKey);
+  @Test
+  public void sorryNothingToTestYet() throws Exception {
+    // just to make jenkins happy :-)
+  }
 }

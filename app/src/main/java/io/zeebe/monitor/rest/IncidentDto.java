@@ -1,4 +1,4 @@
-package io.zeebe.zeebemonitor.rest;
+package io.zeebe.monitor.rest;
 
 public class IncidentDto {
 

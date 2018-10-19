@@ -6,6 +6,7 @@ import io.zeebe.exporter.context.Controller;
 import io.zeebe.exporter.record.Record;
 import io.zeebe.exporter.record.RecordMetadata;
 import io.zeebe.exporter.record.value.DeploymentRecordValue;
+import io.zeebe.exporter.record.value.WorkflowInstanceRecordValue;
 import io.zeebe.exporter.record.value.deployment.DeployedWorkflow;
 import io.zeebe.exporter.record.value.deployment.DeploymentResource;
 import io.zeebe.exporter.record.value.deployment.ResourceType;
@@ -13,6 +14,7 @@ import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.DeploymentIntent;
 import io.zeebe.protocol.intent.Intent;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -32,6 +34,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class JdbcExporterTest {
+
+  public static final String SELECT_FROM_WORKFLOW = "SELECT * FROM WORKFLOW;";
+  public static final String SELECT_FROM_WORKFLOW_INSTANCE = "SELECT * FROM WORKFLOW_INSTANCE;";
+  public static final String SELECT_FROM_ACTIVITY_INSTANCE = "SELECT * FROM ACTIVITY_INSTANCE;";
 
   private JdbcExporter exporter;
   private JdbcExporterConfiguration configuration;
@@ -91,7 +97,7 @@ public class JdbcExporterTest {
         DriverManager.getConnection(
             configuration.jdbcUrl, configuration.userName, configuration.password)) {
       try (final Statement statement = connection.createStatement()) {
-        statement.execute("SELECT * FROM WORKFLOW;");
+        statement.execute(SELECT_FROM_WORKFLOW);
         final ResultSet resultSet = statement.getResultSet();
         resultSet.beforeFirst();
         resultSet.next();
@@ -118,9 +124,181 @@ public class JdbcExporterTest {
     }
   }
 
+  @Test
+  public void shouldInsertWorkflowInstance() throws Exception {
+    // given
+    final Record workflowInstanceRecord =
+        createRecordMockForIntent(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.CREATED, 4L);
+    final WorkflowInstanceRecordValue instanceRecordValueMock =
+        createWorkflowInstanceRecordValueMock("process");
+    when(workflowInstanceRecord.getValue()).thenReturn(instanceRecordValueMock);
+
+    // when
+    exporter.export(workflowInstanceRecord);
+
+    // then
+    try (final Connection connection =
+        DriverManager.getConnection(
+            configuration.jdbcUrl, configuration.userName, configuration.password)) {
+      try (final Statement statement = connection.createStatement()) {
+        statement.execute(SELECT_FROM_WORKFLOW_INSTANCE);
+        final ResultSet resultSet = statement.getResultSet();
+        resultSet.beforeFirst();
+        resultSet.next();
+
+        // ID_, PARTITION_ID_, KEY_, BPMN_PROCESS_ID_, VERSION_, WORKFLOW_KEY_, START_, END_
+        final String uuid = resultSet.getString(1);
+        UUID.fromString(uuid); // should not thrown an exception
+
+        final int partitionId = resultSet.getInt(2);
+        assertThat(partitionId).isEqualTo(0);
+
+        final long key = resultSet.getLong(3);
+        assertThat(key).isEqualTo(4L);
+
+        final String bpmnProcessId = resultSet.getString(4);
+        assertThat(bpmnProcessId).isEqualTo("process");
+
+        final int version = resultSet.getInt(5);
+        assertThat(version).isEqualTo(0);
+
+        final long workflowKey = resultSet.getLong(6);
+        assertThat(workflowKey).isEqualTo(1);
+
+        final long start = resultSet.getLong(7);
+        assertThat(start).isGreaterThan(0).isLessThan(Instant.now().toEpochMilli());
+
+        final long end = resultSet.getLong(8);
+        assertThat(end).isEqualTo(0);
+      }
+    }
+  }
+
+  @Test
+  public void shouldUpdateWorkflowInstance() throws Exception {
+    // given
+    final Record workflowInstanceRecord =
+        createRecordMockForIntent(ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.CREATED, 4L);
+    final WorkflowInstanceRecordValue instanceRecordValueMock =
+        createWorkflowInstanceRecordValueMock("process");
+    when(workflowInstanceRecord.getValue()).thenReturn(instanceRecordValueMock);
+    exporter.export(workflowInstanceRecord);
+
+    final Record secondRecord =
+        createRecordMockForIntent(
+            ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.ELEMENT_TERMINATED, 4L);
+    final WorkflowInstanceRecordValue secondValueMock =
+        createWorkflowInstanceRecordValueMock("process");
+    when(secondRecord.getValue()).thenReturn(secondValueMock);
+
+    // when
+    exporter.export(secondRecord);
+
+    // then
+    try (final Connection connection =
+        DriverManager.getConnection(
+            configuration.jdbcUrl, configuration.userName, configuration.password)) {
+      try (final Statement statement = connection.createStatement()) {
+        statement.execute(SELECT_FROM_WORKFLOW_INSTANCE);
+        final ResultSet resultSet = statement.getResultSet();
+        resultSet.beforeFirst();
+        resultSet.next();
+
+        // ID_, PARTITION_ID_, KEY_, BPMN_PROCESS_ID_, VERSION_, WORKFLOW_KEY_, START_, END_
+        final String uuid = resultSet.getString(1);
+        UUID.fromString(uuid); // should not thrown an exception
+
+        final int partitionId = resultSet.getInt(2);
+        assertThat(partitionId).isEqualTo(0);
+
+        final long key = resultSet.getLong(3);
+        assertThat(key).isEqualTo(4L);
+
+        final String bpmnProcessId = resultSet.getString(4);
+        assertThat(bpmnProcessId).isEqualTo("process");
+
+        final int version = resultSet.getInt(5);
+        assertThat(version).isEqualTo(0);
+
+        final long workflowKey = resultSet.getLong(6);
+        assertThat(workflowKey).isEqualTo(1);
+
+        final long start = resultSet.getLong(7);
+        assertThat(start).isGreaterThan(0).isLessThan(Instant.now().toEpochMilli());
+
+        final long end = resultSet.getLong(8);
+        assertThat(end).isGreaterThan(start);
+      }
+    }
+  }
+
+  @Test
+  public void shouldCreateActivityInstance() throws Exception {
+    // given
+    final Record workflowInstanceRecord =
+        createRecordMockForIntent(
+            ValueType.WORKFLOW_INSTANCE, WorkflowInstanceIntent.SEQUENCE_FLOW_TAKEN);
+    final WorkflowInstanceRecordValue instanceRecordValueMock =
+        createWorkflowInstanceRecordValueMock("sequenceFlow");
+    when(workflowInstanceRecord.getValue()).thenReturn(instanceRecordValueMock);
+    exporter.export(workflowInstanceRecord);
+
+    // when
+    exporter.export(workflowInstanceRecord);
+
+    // then
+    try (final Connection connection =
+        DriverManager.getConnection(
+            configuration.jdbcUrl, configuration.userName, configuration.password)) {
+      try (final Statement statement = connection.createStatement()) {
+        statement.execute(SELECT_FROM_ACTIVITY_INSTANCE);
+        final ResultSet resultSet = statement.getResultSet();
+        resultSet.beforeFirst();
+        resultSet.next();
+
+        // ID_, PARTITION_ID_, KEY_, INTENT, WORKFLOW_INSTANCE_KEY_, ACTIVITY_ID,
+        // SCOPE_INSTANCE_KEY, PAYLOAD, WORKFLOW_KEY, TIMESTAMP
+        final String uuid = resultSet.getString(1);
+        UUID.fromString(uuid); // should not thrown an exception
+
+        final int partitionId = resultSet.getInt(2);
+        assertThat(partitionId).isEqualTo(0);
+
+        final long key = resultSet.getLong(3);
+        assertThat(key).isEqualTo(1L);
+
+        final String intent = resultSet.getString(4);
+        assertThat(intent).isEqualTo("SEQUENCE_FLOW_TAKEN");
+
+        final int workflowInstanceKey = resultSet.getInt(5);
+        assertThat(workflowInstanceKey).isEqualTo(4L);
+
+        final String activityId = resultSet.getString(6);
+        assertThat(activityId).isEqualTo("sequenceFlow");
+
+        final long scopeInstanceKey = resultSet.getLong(7);
+        assertThat(scopeInstanceKey).isEqualTo(-1);
+
+        final String payload = resultSet.getString(8);
+        assertThat(payload).isEqualTo("{\"foo\":\"bar\"}");
+
+        final long workflowKey = resultSet.getLong(9);
+        assertThat(workflowKey).isEqualTo(1L);
+
+        final long timestamp = resultSet.getLong(10);
+        assertThat(timestamp).isGreaterThan(0).isLessThan(Instant.now().toEpochMilli());
+      }
+    }
+  }
+
   private Record createRecordMockForIntent(final ValueType valueType, final Intent intent) {
+    return createRecordMockForIntent(valueType, intent, 1L);
+  }
+
+  private Record createRecordMockForIntent(
+      final ValueType valueType, final Intent intent, final long key) {
     final Record recordMock = mock(Record.class);
-    when(recordMock.getKey()).thenReturn(1L);
+    when(recordMock.getKey()).thenReturn(key);
     when(recordMock.getTimestamp()).thenReturn(Instant.now());
 
     final RecordMetadata metadataMock = mock(RecordMetadata.class);
@@ -156,5 +334,20 @@ public class JdbcExporterTest {
     when(deploymentRecordValueMock.getDeployedWorkflows()).thenReturn(deployedWorkflows);
 
     return deploymentRecordValueMock;
+  }
+
+  private WorkflowInstanceRecordValue createWorkflowInstanceRecordValueMock(
+      final String activityId) {
+    final WorkflowInstanceRecordValue instanceRecordValue = mock(WorkflowInstanceRecordValue.class);
+
+    when(instanceRecordValue.getActivityId()).thenReturn(activityId);
+    when(instanceRecordValue.getScopeInstanceKey()).thenReturn(-1L);
+    when(instanceRecordValue.getWorkflowInstanceKey()).thenReturn(4L);
+    when(instanceRecordValue.getPayload()).thenReturn("{\"foo\":\"bar\"}");
+
+    when(instanceRecordValue.getWorkflowKey()).thenReturn(1L);
+    when(instanceRecordValue.getVersion()).thenReturn(0);
+    when(instanceRecordValue.getBpmnProcessId()).thenReturn("process");
+    return instanceRecordValue;
   }
 }

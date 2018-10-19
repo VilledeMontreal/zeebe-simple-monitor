@@ -27,6 +27,8 @@ import io.zeebe.exporter.spi.Exporter;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.DeploymentIntent;
+import io.zeebe.protocol.intent.Intent;
+import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import org.slf4j.Logger;
 
 import java.net.URI;
@@ -51,6 +53,15 @@ public class JdbcExporter implements Exporter {
 
   private static final String INSERT_WORKFLOW_INSTANCE =
       "INSERT INTO WORKFLOW_INSTANCE"
+          + " (ID_, PARTITION_ID_, KEY_, BPMN_PROCESS_ID_, VERSION_, WORKFLOW_KEY_, START_)"
+          + " VALUES "
+          + "('%s', %d, %d, '%s', %d, %d, %d);";
+
+  private static final String UPDATE_WORKFLOW_INSTANCE =
+      "UPDATE WORKFLOW_INSTANCE SET END_ = %d WHERE KEY_ = %d;";
+
+  private static final String INSERT_ACTIVITY_INSTANCE =
+      "INSERT INTO ACTIVITY_INSTANCE"
           + " (ID_, PARTITION_ID_, KEY_, INTENT_, WORKFLOW_INSTANCE_KEY_, ACTIVITY_ID_, SCOPE_INSTANCE_KEY_, PAYLOAD_, WORKFLOW_KEY_, TIMESTAMP_)"
           + " VALUES "
           + "('%s', %d, %d, '%s', %d, '%s', %d, '%s', %d, %d);";
@@ -65,7 +76,7 @@ public class JdbcExporter implements Exporter {
   public static final String CREATE_SCHEMA_SQL_PATH = "/CREATE_SCHEMA.sql";
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
-  private final List<String> insertStatements;
+  private final List<String> sqlStatements;
 
   private Logger log;
   private JdbcExporterConfiguration configuration;
@@ -73,11 +84,11 @@ public class JdbcExporter implements Exporter {
   private int batchSize;
 
   public JdbcExporter() {
-    insertCreatorPerType.put(ValueType.DEPLOYMENT, this::createWorkflowTableInserts);
-    insertCreatorPerType.put(ValueType.WORKFLOW_INSTANCE, this::createWorkflowInstanceTableInsert);
-    insertCreatorPerType.put(ValueType.INCIDENT, this::createIncidentTableInsert);
+    insertCreatorPerType.put(ValueType.DEPLOYMENT, this::exportDeploymentRecord);
+    insertCreatorPerType.put(ValueType.WORKFLOW_INSTANCE, this::exportWorkflowInstanceRecord);
+    insertCreatorPerType.put(ValueType.INCIDENT, this::exportIncidentRecord);
 
-    insertStatements = new ArrayList<>();
+    sqlStatements = new ArrayList<>();
   }
 
   @Override
@@ -108,7 +119,7 @@ public class JdbcExporter implements Exporter {
     createTables();
     log.info("Start exporting to {}.", configuration.jdbcUrl);
 
-    controller.scheduleTask(COMMIT_TIMER, this::tryToExecuteInsertBatch);
+    controller.scheduleTask(COMMIT_TIMER, this::tryToExecuteSqlStatementBatch);
   }
 
   private void createTables() {
@@ -151,30 +162,28 @@ public class JdbcExporter implements Exporter {
     if (recordConsumer != null) {
       recordConsumer.accept(record);
 
-      if (insertStatements.size() > batchSize) {
-        tryToExecuteInsertBatch();
+      if (sqlStatements.size() > batchSize) {
+        tryToExecuteSqlStatementBatch();
       }
     }
   }
 
-  private void tryToExecuteInsertBatch() {
+  private void tryToExecuteSqlStatementBatch() {
     try (final Statement statement = connection.createStatement()) {
-      for (final String insert : insertStatements) {
+      for (final String insert : sqlStatements) {
         statement.addBatch(insert);
       }
       statement.executeBatch();
-      insertStatements.clear();
+      sqlStatements.clear();
     } catch (final Exception e) {
       log.error("Batch insert failed!", e);
     }
   }
 
-  private void createWorkflowTableInserts(final Record record) {
+  private void exportDeploymentRecord(final Record record) {
     if (DeploymentIntent.CREATED != record.getMetadata().getIntent()) {
       return;
     }
-
-    final long key = record.getKey();
     final long timestamp = record.getTimestamp().toEpochMilli();
     final DeploymentRecordValue deploymentRecordValue = (DeploymentRecordValue) record.getValue();
 
@@ -191,33 +200,83 @@ public class JdbcExporter implements Exporter {
             String.format(
                 INSERT_WORKFLOW,
                 createId(),
-                key,
+                deployedWorkflow.getWorkflowKey(),
                 deployedWorkflow.getBpmnProcessId(),
                 deployedWorkflow.getVersion(),
                 new String(resource.getResource()),
                 timestamp);
-        insertStatements.add(insertStatement);
+        sqlStatements.add(insertStatement);
       }
     }
   }
 
-  private void createWorkflowInstanceTableInsert(final Record record) {
+  private void exportWorkflowInstanceRecord(final Record record) {
     final long key = record.getKey();
     final int partitionId = record.getMetadata().getPartitionId();
-    final String intent = record.getMetadata().getIntent().name();
+    final Intent intent = record.getMetadata().getIntent();
     final long timestamp = record.getTimestamp().toEpochMilli();
 
     final WorkflowInstanceRecordValue workflowInstanceRecordValue =
         (WorkflowInstanceRecordValue) record.getValue();
+
+    if (isWorkflowInstance(record, workflowInstanceRecordValue)) {
+      createWorkflowInstanceStatement(
+          key, partitionId, intent, timestamp, workflowInstanceRecordValue);
+    } else {
+      createActivityInstanceInsert(
+          key, partitionId, intent, timestamp, workflowInstanceRecordValue);
+    }
+  }
+
+  private void createWorkflowInstanceStatement(
+      final long key,
+      final int partitionId,
+      final Intent intent,
+      final long timestamp,
+      final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
+    final boolean wasWorkflowInstanceStarted = intent == WorkflowInstanceIntent.CREATED;
+    final boolean wasWorkflowInstanceEnded =
+        intent == WorkflowInstanceIntent.ELEMENT_TERMINATED
+            || intent == WorkflowInstanceIntent.CREATED;
+
+    if (wasWorkflowInstanceStarted) {
+      final String bpmnProcessId = workflowInstanceRecordValue.getBpmnProcessId();
+      final int version = workflowInstanceRecordValue.getVersion();
+      final long workflowKey = workflowInstanceRecordValue.getWorkflowKey();
+
+      final String insertWorkflowInstanceStatement =
+          String.format(
+              INSERT_WORKFLOW_INSTANCE,
+              createId(),
+              partitionId,
+              key,
+              bpmnProcessId,
+              version,
+              workflowKey,
+              timestamp);
+      sqlStatements.add(insertWorkflowInstanceStatement);
+    } else if (wasWorkflowInstanceEnded) {
+      final String updateWorkflowInstanceStatement =
+          String.format(UPDATE_WORKFLOW_INSTANCE, timestamp, key);
+      sqlStatements.add(updateWorkflowInstanceStatement);
+    }
+  }
+
+  private void createActivityInstanceInsert(
+      final long key,
+      final int partitionId,
+      final Intent intent,
+      final long timestamp,
+      final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
     final long workflowInstanceKey = workflowInstanceRecordValue.getWorkflowInstanceKey();
     final String activityId = workflowInstanceRecordValue.getActivityId();
     final long scopeInstanceKey = workflowInstanceRecordValue.getScopeInstanceKey();
     final String payload = workflowInstanceRecordValue.getPayload();
     final long workflowKey = workflowInstanceRecordValue.getWorkflowKey();
 
-    final String insertStatement =
+    final String insertActivityInstanceStatement =
         String.format(
-            INSERT_WORKFLOW_INSTANCE,
+            INSERT_ACTIVITY_INSTANCE,
             createId(),
             partitionId,
             key,
@@ -228,10 +287,15 @@ public class JdbcExporter implements Exporter {
             payload,
             workflowKey,
             timestamp);
-    insertStatements.add(insertStatement);
+    sqlStatements.add(insertActivityInstanceStatement);
   }
 
-  private void createIncidentTableInsert(final Record record) {
+  private boolean isWorkflowInstance(
+      final Record record, final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
+    return workflowInstanceRecordValue.getWorkflowInstanceKey() == record.getKey();
+  }
+
+  private void exportIncidentRecord(final Record record) {
     final long key = record.getKey();
     final String intent = record.getMetadata().getIntent().name();
     final long timestamp = record.getTimestamp().toEpochMilli();
@@ -255,7 +319,7 @@ public class JdbcExporter implements Exporter {
             errorType,
             errorMessage,
             timestamp);
-    insertStatements.add(insertStatement);
+    sqlStatements.add(insertStatement);
   }
 
   private String createId() {

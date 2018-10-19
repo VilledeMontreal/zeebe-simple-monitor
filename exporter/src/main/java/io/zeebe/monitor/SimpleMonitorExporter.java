@@ -85,6 +85,7 @@ public class SimpleMonitorExporter implements Exporter {
   private int batchSize;
   private int batchTimerMilli;
   private Duration batchExecutionTimer;
+  private long lastPosition;
 
   public SimpleMonitorExporter() {
     insertCreatorPerType.put(ValueType.DEPLOYMENT, this::exportDeploymentRecord);
@@ -162,6 +163,7 @@ public class SimpleMonitorExporter implements Exporter {
 
   @Override
   public void export(final Record record) {
+    lastPosition = record.getPosition();
     if (record.getMetadata().getRecordType() != RecordType.EVENT) {
       return;
     }
@@ -192,6 +194,7 @@ public class SimpleMonitorExporter implements Exporter {
     } catch (final Exception e) {
       log.error("Batch insert failed!", e);
     }
+    controller.updateLastExportedRecordPosition(lastPosition);
   }
 
   private void exportDeploymentRecord(final Record record) {

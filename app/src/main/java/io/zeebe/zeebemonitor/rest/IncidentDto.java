@@ -4,6 +4,7 @@ public class IncidentDto {
 
   private long key;
 
+  private String activityId;
   private long activityInstanceKey;
   private long jobKey;
 
@@ -58,5 +59,13 @@ public class IncidentDto {
 
   public void setResolved(boolean isResolved) {
     this.isResolved = isResolved;
+  }
+
+  public String getActivityId() {
+    return activityId;
+  }
+
+  public void setActivityId(String activityId) {
+    this.activityId = activityId;
   }
 }

@@ -136,6 +136,16 @@ public class WorkflowInstanceResource {
 
                         final IncidentDto incidentDto = new IncidentDto();
                         incidentDto.setKey(incidentKey);
+
+                        events
+                            .stream()
+                            .filter(e -> e.getKey() == lastIncidentEvent.getActivityInstanceKey())
+                            .findFirst()
+                            .ifPresent(
+                                e -> {
+                                  incidentDto.setActivityId(e.getActivityId());
+                                });
+
                         incidentDto.setActivityInstanceKey(
                             lastIncidentEvent.getActivityInstanceKey());
                         incidentDto.setJobKey(lastIncidentEvent.getJobKey());

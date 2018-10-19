@@ -32,26 +32,20 @@ public class WorkflowInstanceEntity {
   @Column(name = "KEY_")
   private long key;
 
-  @Column(name = "INTENT_")
-  private String intent;
-
-  @Column(name = "WORKFLOW_INSTANCE_KEY_")
-  private long workflowInstanceKey;
-
-  @Column(name = "ACTIVITY_ID_")
-  private String activityId;
-
-  @Column(name = "SCOPE_INSTANCE_KEY_")
-  private long scopeInstanceKey;
-
-  @Column(name = "PAYLOAD_")
-  private String payload;
-
   @Column(name = "WORKFLOW_KEY_")
   private long workflowKey;
 
-  @Column(name = "TIMESTAMP_")
-  private long timestamp;
+  @Column(name = "BPMN_PROCESS_ID_")
+  private String bpmnProcessId;
+
+  @Column(name = "VERSION_")
+  private int version;
+
+  @Column(name = "START_")
+  private long start;
+
+  @Column(name = "END_")
+  private Long end;
 
   public long getKey() {
     return key;
@@ -61,44 +55,12 @@ public class WorkflowInstanceEntity {
     this.key = key;
   }
 
-  public String getIntent() {
-    return intent;
-  }
-
-  public void setIntent(String intent) {
-    this.intent = intent;
-  }
-
   public long getTimestamp() {
-    return timestamp;
+    return start;
   }
 
   public void setTimestamp(long timestamp) {
-    this.timestamp = timestamp;
-  }
-
-  public String getActivityId() {
-    return activityId;
-  }
-
-  public void setActivityId(String activityId) {
-    this.activityId = activityId;
-  }
-
-  public long getScopeInstanceKey() {
-    return scopeInstanceKey;
-  }
-
-  public void setScopeInstanceKey(long scopeInstanceKey) {
-    this.scopeInstanceKey = scopeInstanceKey;
-  }
-
-  public String getPayload() {
-    return payload;
-  }
-
-  public void setPayload(String payload) {
-    this.payload = payload;
+    this.start = timestamp;
   }
 
   public String getId() {
@@ -117,19 +79,43 @@ public class WorkflowInstanceEntity {
     this.partitionId = partitionId;
   }
 
-  public long getWorkflowInstanceKey() {
-    return workflowInstanceKey;
-  }
-
-  public void setWorkflowInstanceKey(long workflowInstanceKey) {
-    this.workflowInstanceKey = workflowInstanceKey;
-  }
-
   public long getWorkflowKey() {
     return workflowKey;
   }
 
   public void setWorkflowKey(long workflowKey) {
     this.workflowKey = workflowKey;
+  }
+
+  public String getBpmnProcessId() {
+    return bpmnProcessId;
+  }
+
+  public void setBpmnProcessId(String bpmnProcessId) {
+    this.bpmnProcessId = bpmnProcessId;
+  }
+
+  public int getVersion() {
+    return version;
+  }
+
+  public void setVersion(int version) {
+    this.version = version;
+  }
+
+  public long getStart() {
+    return start;
+  }
+
+  public void setStart(long start) {
+    this.start = start;
+  }
+
+  public Long getEnd() {
+    return end;
+  }
+
+  public void setEnd(Long end) {
+    this.end = end;
   }
 }

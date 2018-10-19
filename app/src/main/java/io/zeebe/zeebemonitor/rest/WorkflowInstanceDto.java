@@ -37,6 +37,8 @@ public class WorkflowInstanceDto {
 
   private List<IncidentDto> incidents = new ArrayList<>();
 
+  private String workflowResource;
+
   public String getPayload() {
     return payload;
   }
@@ -124,5 +126,13 @@ public class WorkflowInstanceDto {
 
   public void setIncidents(List<IncidentDto> incidents) {
     this.incidents = incidents;
+  }
+
+  public String getWorkflowResource() {
+    return workflowResource;
+  }
+
+  public void setWorkflowResource(String workflowResource) {
+    this.workflowResource = workflowResource;
   }
 }

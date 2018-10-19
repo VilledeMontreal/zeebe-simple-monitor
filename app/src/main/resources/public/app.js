@@ -193,7 +193,7 @@ function loadWorkflowInstances() {
 	    	
 	      var index = -1
 	      if (selectedWorkflowInstance) {
-	    	index = workflowInstances.findIndex(function(wf) { return wf.workflowInstanceKey == selectedWorkflowInstance.workflowInstanceKey});  
+	    	index = workflowInstances.findIndex(function(wf) { return wf.key == selectedWorkflowInstance.key});  
 	      }	      
 	      if (index < 0) {
 	        index = workflowInstances.length - 1
@@ -214,16 +214,16 @@ function renderWorkflowInstanceTable() {
 	for (index = workflowInstances.length-1; index >= 0; --index) {
 		var def = workflowInstances[index];
 		var selectedClass = '';
-		if (selectedWorkflowInstance && def.workflowInstanceKey==selectedWorkflowInstance.workflowInstanceKey) {
+		if (selectedWorkflowInstance && def.key==selectedWorkflowInstance.key) {
 			selectedClass ='class="tngp-table-selected"';
 		}
 		
 		$('#workflowInstanceTable tbody').append("<tr>" + 
-				"<td "+selectedClass+"><a onclick='selectWorkflowInstance("+index+")'>"+def.workflowInstanceKey+"</a></td>" + 
+				"<td "+selectedClass+"><a onclick='selectWorkflowInstance("+index+")'>"+def.key+"</a></td>" + 
 				"<td "+selectedClass+">"+def.bpmnProcessId+"</td>"+
-				"<td "+selectedClass+">"+def.workflowVersion+"</td>"+
+				"<td "+selectedClass+">"+def.version+"</td>"+
 				"<td "+selectedClass+">"+def.workflowKey+"</td>"+
-				"<td "+selectedClass+">"+(def.ended ? "Ended" : "Running")+"</td>"+
+				"<td "+selectedClass+">"+(def.end ? "Ended" : "Running")+"</td>"+
 				"</tr>");
 	}
 }	
@@ -238,29 +238,32 @@ function selectWorkflowInstance(index) {
 function renderSelectedWorkflowInstance() {
 	if (selectedWorkflowInstance) {
 		
-		$('#workflowInstanceKey').html(selectedWorkflowInstance.workflowInstanceKey);
-		if (selectedWorkflowInstance.ended) {
-			$('#workflowRunning').html("Ended");
-		} else {
-			$('#workflowRunning').html("Running");
-		}
-
-		$('#workflowKey').html(selectedWorkflowInstance.workflowKey);
-		$('#bpmnProcessId').html(selectedWorkflowInstance.bpmnProcessId);
+		$.get(restAccess + 'instances/' + selectedWorkflowInstance.key, function(result) {
 		
-		$('#payload').val(
-			JSON.stringify(
-				JSON.parse(selectedWorkflowInstance.payload), undefined, 2
-			));
+			$('#workflowInstanceKey').html(selectedWorkflowInstance.key);
+			if (result.ended) {
+				$('#workflowRunning').html("Ended");
+			} else {
+				$('#workflowRunning').html("Running");
+			}
+	
+			$('#workflowKey').html(selectedWorkflowInstance.workflowKey);
+			$('#bpmnProcessId').html(selectedWorkflowInstance.bpmnProcessId);
+			
+			$('#payload').val(
+				JSON.stringify(
+					JSON.parse(result.payload), undefined, 2
+				));
+			
+			$("#update-payload").prop("disabled", result.ended);
+			$("#cancel-workflow-instance").prop("disabled", result.ended);
+			$("#update-retries").prop("disabled", result.ended || result.incidents.filter(i => i.errorType == "JOB_NO_RETRIES").length == 0);
+			
+			renderIncidentsTable(result);
+	
+			$('#workflowInstanceInfo').text('');
 		
-		$("#update-payload").prop("disabled", selectedWorkflowInstance.ended);
-		$("#cancel-workflow-instance").prop("disabled", selectedWorkflowInstance.ended);
-		
-		renderIncidentsTable();
-
-		$('#workflowInstanceInfo').text('');
-		$.get(restAccess + 'workflows/' + selectedWorkflowInstance.workflowKey, function(result) {
-			viewer.importXML(result.resource, function(err) {
+			viewer.importXML(result.workflowResource, function(err) {
 							if (err) {
 								console.log('error rendering', err);
 				             	showError(err);
@@ -275,18 +278,18 @@ function renderSelectedWorkflowInstance() {
 								// zoom to fit full viewport
 								canvas.zoom('fit-viewport');
 
-								addBpmnOverlays(canvas, overlays, selectedWorkflowInstance);
-								markSequenceFlows(injector, selectedWorkflowInstance);
+								addBpmnOverlays(canvas, overlays, result);
+								markSequenceFlows(injector, result);
 							}
 			});
 		});
     }
 }
 
-function renderIncidentsTable() {
+function renderIncidentsTable(instance) {
 	$("#incidentsTable > tbody").html("");
-	for (index = 0; index < selectedWorkflowInstance.incidents.length; ++index) {
-		var incident = selectedWorkflowInstance.incidents[index];
+	for (index = 0; index < instance.incidents.length; ++index) {
+		var incident = instance.incidents[index];
 		$('#incidentsTable tbody').append("<tr><td>"+incident.errorType+"</td><td>"+incident.errorMessage+"</td></tr>");
 	}
 }
@@ -414,7 +417,7 @@ function updatePayload() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey + "/update-payload",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-payload",
 	             data:  $('#payload').val(),
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -435,7 +438,7 @@ function updateRetries() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'PUT',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey + "/update-retries",
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key + "/update-retries",
 	             data:  '{"retries": "2"}', // TODO
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
@@ -456,7 +459,7 @@ function cancelWorkflowInstance() {
 	if (selectedWorkflowInstance) {
 		$.ajax({
 	             type : 'DELETE',
-	             url: restAccess + 'instances/' + selectedWorkflowInstance.workflowInstanceKey,
+	             url: restAccess + 'instances/' + selectedWorkflowInstance.key,
 	             contentType: 'application/json; charset=utf-8',
 	             success: function (result) {
 	             	setTimeout(function() {

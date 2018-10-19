@@ -72,16 +72,19 @@ public class JdbcExporter implements Exporter {
           + " VALUES "
           + "('%s', %d, '%s', %d, %d, %d, '%s', '%s', %d)";
 
-  public static final Duration COMMIT_TIMER = Duration.ofSeconds(15);
   public static final String CREATE_SCHEMA_SQL_PATH = "/CREATE_SCHEMA.sql";
 
   private final Map<ValueType, Consumer<Record>> insertCreatorPerType = new HashMap<>();
   private final List<String> sqlStatements;
 
   private Logger log;
+  private Controller controller;
   private JdbcExporterConfiguration configuration;
+
   private Connection connection;
   private int batchSize;
+  private int batchTimerSec;
+  private Duration batchExecutionTimer;
 
   public JdbcExporter() {
     insertCreatorPerType.put(ValueType.DEPLOYMENT, this::exportDeploymentRecord);
@@ -96,6 +99,7 @@ public class JdbcExporter implements Exporter {
     log = context.getLogger();
     configuration = context.getConfiguration().instantiate(JdbcExporterConfiguration.class);
     batchSize = configuration.batchSize;
+    batchTimerSec = configuration.batchTimerSec;
 
     log.debug("Exporter configured with {}", configuration);
     try {
@@ -119,7 +123,11 @@ public class JdbcExporter implements Exporter {
     createTables();
     log.info("Start exporting to {}.", configuration.jdbcUrl);
 
-    controller.scheduleTask(COMMIT_TIMER, this::tryToExecuteSqlStatementBatch);
+    this.controller = controller;
+    if (batchTimerSec > 0) {
+      batchExecutionTimer = Duration.ofSeconds(batchTimerSec);
+      this.controller.scheduleTask(batchExecutionTimer, this::batchTimerExecution);
+    }
   }
 
   private void createTables() {
@@ -163,12 +171,17 @@ public class JdbcExporter implements Exporter {
       recordConsumer.accept(record);
 
       if (sqlStatements.size() > batchSize) {
-        tryToExecuteSqlStatementBatch();
+        executeSqlStatementBatch();
       }
     }
   }
 
-  private void tryToExecuteSqlStatementBatch() {
+  private void batchTimerExecution() {
+    executeSqlStatementBatch();
+    controller.scheduleTask(batchExecutionTimer, this::batchTimerExecution);
+  }
+
+  private void executeSqlStatementBatch() {
     try (final Statement statement = connection.createStatement()) {
       for (final String insert : sqlStatements) {
         statement.addBatch(insert);
@@ -210,6 +223,11 @@ public class JdbcExporter implements Exporter {
     }
   }
 
+  private boolean isWorkflowInstance(
+    final Record record, final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
+    return workflowInstanceRecordValue.getWorkflowInstanceKey() == record.getKey();
+  }
+
   private void exportWorkflowInstanceRecord(final Record record) {
     final long key = record.getKey();
     final int partitionId = record.getMetadata().getPartitionId();
@@ -220,15 +238,13 @@ public class JdbcExporter implements Exporter {
         (WorkflowInstanceRecordValue) record.getValue();
 
     if (isWorkflowInstance(record, workflowInstanceRecordValue)) {
-      createWorkflowInstanceStatement(
-          key, partitionId, intent, timestamp, workflowInstanceRecordValue);
+      exportWorkflowInstance(key, partitionId, intent, timestamp, workflowInstanceRecordValue);
     } else {
-      createActivityInstanceInsert(
-          key, partitionId, intent, timestamp, workflowInstanceRecordValue);
+      exportActivityInstance(key, partitionId, intent, timestamp, workflowInstanceRecordValue);
     }
   }
 
-  private void createWorkflowInstanceStatement(
+  private void exportWorkflowInstance(
       final long key,
       final int partitionId,
       final Intent intent,
@@ -262,7 +278,7 @@ public class JdbcExporter implements Exporter {
     }
   }
 
-  private void createActivityInstanceInsert(
+  private void exportActivityInstance(
       final long key,
       final int partitionId,
       final Intent intent,
@@ -288,11 +304,6 @@ public class JdbcExporter implements Exporter {
             workflowKey,
             timestamp);
     sqlStatements.add(insertActivityInstanceStatement);
-  }
-
-  private boolean isWorkflowInstance(
-      final Record record, final WorkflowInstanceRecordValue workflowInstanceRecordValue) {
-    return workflowInstanceRecordValue.getWorkflowInstanceKey() == record.getKey();
   }
 
   private void exportIncidentRecord(final Record record) {
